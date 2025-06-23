@@ -85,24 +85,57 @@ export default defineEventHandler(async (event) => {
 
     // Step 3: Sign the script
     try {
+      const originalName = files.script?.[0]?.originalFilename || 'signedfile';
+      const ext = path.extname(originalName).toLowerCase();
+      const baseName = originalName.slice(0, -ext.length);
+
+      if (ext === '.ps1') {
+        // PowerShell script: sign using Set-AuthenticodeSignature
+        const signedScriptPath = path.join(tmpdir(), `signed-${randomUUID()}.ps1`);
+        // Copy the script to a temp location for signing
+        await fs.copyFile(scriptPath, signedScriptPath);
+
+        // Use PowerShell to sign the script
+        // Assumes the extracted key is a PFX file, so we use the original certPath and password
+        const psCommand = `
+          $cert = Get-PfxCertificate -FilePath "${certPath}" -Password (ConvertTo-SecureString "${password}" -AsPlainText -Force);
+          Set-AuthenticodeSignature -FilePath "${signedScriptPath}" -Certificate $cert | Out-Null
+        `;
+        await new Promise((resolve, reject) => {
+          const ps = spawn('powershell.exe', ['-NoProfile', '-Command', psCommand], { windowsHide: true });
+          let stderr = '';
+          ps.stderr.on('data', (data) => { stderr += data.toString(); });
+          ps.on('close', (code) => {
+            if (code === 0) resolve(null);
+            else reject(new Error(stderr || 'Failed to sign PowerShell script'));
+          });
+        });
+
+        // Return the signed script file
+        const signedScript = await fs.readFile(signedScriptPath);
+        const signedFilename = `${baseName}_signed${ext}`;
+        event.node.res.setHeader('Content-Type', 'application/octet-stream');
+        event.node.res.setHeader('Content-Disposition', `attachment; filename="${signedFilename}"`);
+        event.node.res.end(signedScript);
+
+        // Cleanup
+        await fs.rm(signedScriptPath, { force: true });
+        await fs.rm(tmpKey, { force: true });
+        return;
+      }
+
+      // Default: detached signature for other file types
       const signature = await runOpenSSL([
         'dgst',
         '-sha256',
         '-sign', tmpKey
-      ], await fs.readFile(scriptPath))
+      ], await fs.readFile(scriptPath));
 
-      // Prepare a filename for the signature file
-      const originalName = files.script?.[0]?.originalFilename || 'signedfile';
-      const signatureFilename = `${originalName}.sig`;
-
-      // Set headers for file download
+      const signatureFilename = `${baseName}_signed${ext || '.sig'}`;
       event.node.res.setHeader('Content-Type', 'application/octet-stream');
       event.node.res.setHeader('Content-Disposition', `attachment; filename="${signatureFilename}"`);
-
-      // Send the signature as the response body
       event.node.res.end(signature);
-
-      // Return undefined to prevent further response handling
+      await fs.rm(tmpKey, { force: true });
       return;
 
     } catch (err) {

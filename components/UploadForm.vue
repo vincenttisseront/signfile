@@ -278,14 +278,12 @@ async function handleSubmit() {
       body: formData
     })
     logWithTimestamp('Waiting for server response...')
-    if (response.ok && response.headers.get('Content-Disposition')) {
+    const disposition = response.headers.get('Content-Disposition')
+    if (response.ok && disposition) {
       // Get filename from Content-Disposition
-      const disposition = response.headers.get('Content-Disposition')
       let filename = 'signedfile.sig'
-      if (disposition) {
-        const match = disposition.match(/filename="(.+?)"/)
-        if (match) filename = match[1]
-      }
+      const match = disposition.match(/filename="(.+?)"/)
+      if (match) filename = match[1]
       const blob = await response.blob()
       // Save blob and filename for popup
       downloadBlob.value = blob
@@ -300,8 +298,8 @@ async function handleSubmit() {
         passwordStatus.value = 'accepted'
       }
     } else {
-      // Try to parse error
-      let result
+      // Only try to parse JSON if not a file download
+      let result = {}
       try { result = await response.json() } catch {}
       logWithTimestamp(`Error from server: ${result?.error || result?.message || response.statusText}`)
       // If password error, reset passwordEntered so "Password accepted" is not shown
