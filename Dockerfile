@@ -17,6 +17,9 @@ COPY . .
 # Expose default Nuxt port
 EXPOSE 3000
 
+# Ensure Nuxt listens on all interfaces
+ENV NITRO_HOST=0.0.0.0
+
 # Build Nuxt app (or skip if dev mode)
 RUN npm run build
 
