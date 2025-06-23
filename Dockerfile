@@ -4,6 +4,15 @@ FROM node:22-slim
 # Install OpenSSL
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
+# Install Java + wget
+RUN apt-get update && apt-get install -y openjdk-17-jre wget && rm -rf /var/lib/apt/lists/*
+
+# Download jsign CLI
+RUN wget -O /usr/local/bin/jsign.jar https://github.com/ebourg/jsign/releases/download/5.0/jsign-5.0.jar
+
+# Create a wrapper script for convenience
+RUN echo '#!/bin/sh\nexec java -jar /usr/local/bin/jsign.jar "$@"' > /usr/local/bin/jsign && chmod +x /usr/local/bin/jsign
+
 # Create app directory
 WORKDIR /app
 

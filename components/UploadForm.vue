@@ -10,9 +10,30 @@
             type="file"
             accept=".pfx,.pem"
             @change="handleCertFile"
-            required
+            :disabled="selectedStoredCert"
             class="block w-full text-gray-700 file:bg-gray-100 file:border-0 file:rounded-lg file:px-4 file:py-2 file:text-blue-700 file:font-medium file:cursor-pointer"
           />
+        </div>
+        <div class="mt-2">
+          <label class="block mb-1 font-medium text-gray-700" for="storedCert">Or select a stored certificate</label>
+          <div class="flex gap-2">
+            <select
+              id="storedCert"
+              v-model="selectedStoredCert"
+              @change="handleStoredCert"
+              class="block w-full border border-gray-300 rounded-lg p-2 text-gray-700"
+            >
+              <option value="">-- Select stored certificate --</option>
+              <option v-for="cert in storedCerts" :key="cert" :value="cert">{{ cert }}</option>
+            </select>
+            <button
+              v-if="selectedStoredCert"
+              type="button"
+              class="px-3 py-2 rounded bg-red-600 text-white font-semibold"
+              @click="removeStoredCert"
+              title="Remove selected certificate"
+            >Remove</button>
+          </div>
         </div>
       </form>
     </div>
@@ -134,7 +155,7 @@
 
 <script setup>
 // filepath: c:\Users\vti\OneDrive - iBanFirst\Work in progress\Dev\SignFile\components\UploadForm.vue
-import { ref, inject } from 'vue'
+import { ref, inject, onMounted } from 'vue'
 
 const scriptFile = ref(null)
 const certFile = ref(null)
@@ -150,6 +171,22 @@ const passwordStatus = ref('') // '', 'accepted', 'rejected'
 const showDownloadPopup = ref(false)
 const downloadBlob = ref(null)
 const downloadFilename = ref('')
+const isLoading = ref(false)
+
+const storedCerts = ref([])
+const selectedStoredCert = ref('')
+
+onMounted(async () => {
+  // Fetch stored certs from backend
+  try {
+    const res = await fetch('/api/certs')
+    if (res.ok) {
+      storedCerts.value = await res.json()
+    }
+  } catch (e) {
+    // ignore
+  }
+})
 
 function logWithTimestamp(message) {
   const now = new Date()
@@ -162,7 +199,20 @@ function handleScriptFile(event) {
   logWithTimestamp(`Selected script file: ${scriptFile.value?.name}`)
 }
 
+function handleStoredCert() {
+  if (!selectedStoredCert.value) return
+  certFile.value = null
+  certFileData.value = null
+  password.value = ''
+  passwordEntered.value = false
+  passwordError.value = ''
+  passwordRequired.value = true
+  showPasswordPopup.value = true
+  logWithTimestamp(`Selected stored certificate: ${selectedStoredCert.value}`)
+}
+
 function handleCertFile(event) {
+  selectedStoredCert.value = ''
   const file = event.target.files[0]
   if (!file) return
   certFile.value = file
@@ -264,13 +314,19 @@ async function handleSubmit() {
   logWithTimestamp('Preparing files for signing...')
   const formData = new FormData()
   formData.append('script', scriptFile.value)
-  formData.append('certificate', new File([certFileData.value], certFile.value.name))
+  if (selectedStoredCert.value) {
+    formData.append('storedCert', selectedStoredCert.value)
+    logWithTimestamp(`Using stored certificate: ${selectedStoredCert.value}`)
+  } else {
+    formData.append('certificate', new File([certFileData.value], certFile.value.name))
+  }
   if (password.value) {
     formData.append('password', password.value)
     logWithTimestamp('Certificate password included in request.')
   }
 
   logWithTimestamp('Uploading files for signing...')
+  isLoading.value = true
   let response
   try {
     response = await fetch('/api/sign', {
@@ -278,32 +334,40 @@ async function handleSubmit() {
       body: formData
     })
     logWithTimestamp('Waiting for server response...')
+    const contentType = response.headers.get('Content-Type') || ''
     const disposition = response.headers.get('Content-Disposition')
-    if (response.ok && disposition) {
-      // Get filename from Content-Disposition
-      let filename = 'signedfile.sig'
-      const match = disposition.match(/filename="(.+?)"/)
-      if (match) filename = match[1]
+
+    if (response.ok && (disposition || contentType.includes('application/octet-stream'))) {
       const blob = await response.blob()
-      // Save blob and filename for popup
+      let filename = 'signedfile.sig'
+
+      const match = disposition?.match(/filename="(.+?)"/)
+      if (match) filename = match[1]
+
       downloadBlob.value = blob
       downloadFilename.value = filename
       showDownloadPopup.value = true
-      // Trigger download immediately
       triggerDownload(blob, filename)
       logWithTimestamp('Signed file downloaded.')
-      // Only show "Password accepted" if password was required and accepted
+
       if (passwordRequired.value) {
         passwordEntered.value = true
         passwordStatus.value = 'accepted'
       }
+
     } else {
-      // Only try to parse JSON if not a file download
+      // Try to parse JSON or fallback to raw text
       let result = {}
-      try { result = await response.json() } catch {}
-      logWithTimestamp(`Error from server: ${result?.error || result?.message || response.statusText}`)
-      // If password error, reset passwordEntered so "Password accepted" is not shown
-      if (result?.error && result.error.toLowerCase().includes('password')) {
+      try {
+        const content = await response.text()
+        result = contentType.includes('application/json') ? JSON.parse(content) : { error: content }
+      } catch {
+        result = { error: 'Unexpected response from server.' }
+      }
+
+      logWithTimestamp(`Error from server: ${result?.error || response.statusText}`)
+
+      if (result?.error?.toLowerCase().includes('password')) {
         passwordEntered.value = false
         passwordStatus.value = 'rejected'
         password.value = ''
@@ -313,6 +377,8 @@ async function handleSubmit() {
     }
   } catch (err) {
     logWithTimestamp(`Network or server error: ${err}`)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -335,5 +401,22 @@ function closeDownloadPopup() {
 
 function confirmUnloadCert() {
   clearCert()
+}
+
+async function removeStoredCert() {
+  if (!selectedStoredCert.value) return
+  if (!confirm(`Are you sure you want to remove certificate "${selectedStoredCert.value}"?`)) return
+  try {
+    const res = await fetch(`/api/certs?name=${encodeURIComponent(selectedStoredCert.value)}`, { method: 'DELETE' })
+    if (res.ok) {
+      storedCerts.value = storedCerts.value.filter(c => c !== selectedStoredCert.value)
+      logWithTimestamp(`Removed stored certificate: ${selectedStoredCert.value}`)
+      selectedStoredCert.value = ''
+    } else {
+      logWithTimestamp(`Failed to remove certificate: ${selectedStoredCert.value}`)
+    }
+  } catch (e) {
+    logWithTimestamp(`Error removing certificate: ${e}`)
+  }
 }
 </script>
