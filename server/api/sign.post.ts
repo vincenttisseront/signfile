@@ -91,8 +91,19 @@ export default defineEventHandler(async (event) => {
         '-sign', tmpKey
       ], await fs.readFile(scriptPath))
 
-      const base64Signature = signature.toString('base64')
-      return { signature: base64Signature }
+      // Prepare a filename for the signature file
+      const originalName = files.script?.[0]?.originalFilename || 'signedfile';
+      const signatureFilename = `${originalName}.sig`;
+
+      // Set headers for file download
+      event.node.res.setHeader('Content-Type', 'application/octet-stream');
+      event.node.res.setHeader('Content-Disposition', `attachment; filename="${signatureFilename}"`);
+
+      // Send the signature as the response body
+      event.node.res.end(signature);
+
+      // Return undefined to prevent further response handling
+      return;
 
     } catch (err) {
       console.error('[openssl] Signing error:', err)

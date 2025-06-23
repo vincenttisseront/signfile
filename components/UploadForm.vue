@@ -117,16 +117,17 @@
         </div>
       </div>
     </div>
-    <div v-if="signature" class="mt-4">
-      <h3 class="font-semibold text-blue-700">Signature</h3>
-      <pre class="bg-gray-50 border border-gray-200 rounded-lg p-3 mt-2 text-xs break-all">{{ signature }}</pre>
-      <button
-        v-if="signature"
-        @click="downloadSignature"
-        class="mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold shadow transition"
-      >
-        Download Signed File
-      </button>
+    <!-- Download popup -->
+    <div
+      v-if="showDownloadPopup"
+      class="fixed inset-0 flex items-center justify-center z-50"
+      style="backdrop-filter: blur(6px); background: rgba(255,255,255,0.4);"
+    >
+      <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-xs flex flex-col items-center">
+        <h2 class="text-lg font-semibold mb-4 text-blue-700">Signed File Ready</h2>
+        <p class="mb-4 text-gray-700 text-sm text-center">Your signed file is ready and will be saved to your device.</p>
+        <button @click="closeDownloadPopup" class="px-4 py-2 rounded bg-blue-600 text-white font-semibold">OK</button>
+      </div>
     </div>
   </div>
 </template>
@@ -139,7 +140,6 @@ const scriptFile = ref(null)
 const certFile = ref(null)
 const certFileData = ref(null)
 const password = ref('')
-const signature = ref('')
 const showPasswordPopup = ref(false)
 const passwordRequired = ref(false)
 const passwordEntered = ref(false)
@@ -147,6 +147,9 @@ const logs = inject('logs', null)
 const passwordError = ref('')
 const showUnloadConfirm = ref(false)
 const passwordStatus = ref('') // '', 'accepted', 'rejected'
+const showDownloadPopup = ref(false)
+const downloadBlob = ref(null)
+const downloadFilename = ref('')
 
 function logWithTimestamp(message) {
   const now = new Date()
@@ -268,27 +271,41 @@ async function handleSubmit() {
   }
 
   logWithTimestamp('Uploading files for signing...')
-  let response, result
+  let response
   try {
     response = await fetch('/api/sign', {
       method: 'POST',
       body: formData
     })
     logWithTimestamp('Waiting for server response...')
-    result = await response.json()
-    if (response.ok) {
-      signature.value = result.signature
-      logWithTimestamp('Signature received.')
+    if (response.ok && response.headers.get('Content-Disposition')) {
+      // Get filename from Content-Disposition
+      const disposition = response.headers.get('Content-Disposition')
+      let filename = 'signedfile.sig'
+      if (disposition) {
+        const match = disposition.match(/filename="(.+?)"/)
+        if (match) filename = match[1]
+      }
+      const blob = await response.blob()
+      // Save blob and filename for popup
+      downloadBlob.value = blob
+      downloadFilename.value = filename
+      showDownloadPopup.value = true
+      // Trigger download immediately
+      triggerDownload(blob, filename)
+      logWithTimestamp('Signed file downloaded.')
       // Only show "Password accepted" if password was required and accepted
       if (passwordRequired.value) {
         passwordEntered.value = true
         passwordStatus.value = 'accepted'
       }
     } else {
-      signature.value = ''
-      logWithTimestamp(`Error from server: ${result.error || result.message || response.statusText}`)
+      // Try to parse error
+      let result
+      try { result = await response.json() } catch {}
+      logWithTimestamp(`Error from server: ${result?.error || result?.message || response.statusText}`)
       // If password error, reset passwordEntered so "Password accepted" is not shown
-      if (result.error && result.error.toLowerCase().includes('password')) {
+      if (result?.error && result.error.toLowerCase().includes('password')) {
         passwordEntered.value = false
         passwordStatus.value = 'rejected'
         password.value = ''
@@ -297,27 +314,25 @@ async function handleSubmit() {
       }
     }
   } catch (err) {
-    signature.value = ''
     logWithTimestamp(`Network or server error: ${err}`)
   }
 }
 
-function downloadSignature() {
-  if (!signature.value || !scriptFile.value) return
-  const blob = new Blob([signature.value], { type: 'text/plain' })
+function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob)
-  const origName = scriptFile.value.name
-  const extIdx = origName.lastIndexOf('.')
-  const signedName = extIdx > 0
-    ? origName.slice(0, extIdx) + '.signed' + origName.slice(extIdx)
-    : origName + '.signed'
   const a = document.createElement('a')
   a.href = url
-  a.download = signedName
+  a.download = filename
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+function closeDownloadPopup() {
+  showDownloadPopup.value = false
+  downloadBlob.value = null
+  downloadFilename.value = ''
 }
 
 function confirmUnloadCert() {

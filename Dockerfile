@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# Copy source code
+# Copy source code (including hidden files)
 COPY . .
 
 # Expose default Nuxt port
