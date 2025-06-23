@@ -70,9 +70,8 @@ export default defineEventHandler(async (event) => {
 
     const tmpKey = path.join(tmpdir(), `key-${randomUUID()}.pem`)
 
-    // Step 1: Extract private key from PFX
+    // Check certificate password and extract private key
     try {
-      console.log(`[sign.post.ts] Extracting private key from PFX: ${certPath}`);
       await runOpenSSL([
         'pkcs12',
         '-in', certPath,
@@ -81,10 +80,9 @@ export default defineEventHandler(async (event) => {
         '-passin', `pass:${password}`,
         '-out', tmpKey
       ])
-      console.log('[sign.post.ts] Private key extracted to:', tmpKey);
     } catch (err) {
-      console.error('[openssl] Failed to extract key:', err)
-      return sendError(event, createError({ statusCode: 401, message: 'Invalid password or malformed PFX file.' }))
+      console.error('[sign] Invalid certificate password:', err)
+      return sendError(event, createError({ statusCode: 401, message: 'Invalid password or unreadable certificate.' }))
     }
 
     // Step 2: Password check only, no script to sign
