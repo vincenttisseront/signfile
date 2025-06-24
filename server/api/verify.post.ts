@@ -9,22 +9,17 @@ import { spawn } from 'child_process'
 function runOpenSSL(args: string[], input?: Buffer): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const proc = spawn('openssl', args)
-
     const stdout: Buffer[] = []
     const stderr: Buffer[] = []
-
     proc.stdout.on('data', chunk => stdout.push(chunk))
     proc.stderr.on('data', chunk => stderr.push(chunk))
-
     proc.on('error', (error) => {
       reject(new Error('OpenSSL not found. Please ensure OpenSSL is installed and available in PATH.'))
     })
-
     proc.on('close', (code) => {
       if (code === 0) resolve(Buffer.concat(stdout))
       else reject(Buffer.concat(stderr).toString())
     })
-
     if (input) proc.stdin.write(input)
     proc.stdin.end()
   })
@@ -33,8 +28,12 @@ function runOpenSSL(args: string[], input?: Buffer): Promise<Buffer> {
 export default defineEventHandler(async (event) => {
   try {
     const form = await readFormData(event)
-
     const scriptFile = form.get('script') as File
+
+    if (!scriptFile) {
+      return sendError(event, createError({ statusCode: 400, message: 'Missing script file.' }))
+    }
+
     // Try to extract signature and certificate from the script file
     let signatureBase64: string | null = null
     let certificatePem: string | null = null

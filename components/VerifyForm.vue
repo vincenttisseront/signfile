@@ -54,64 +54,16 @@ async function handleScriptFile(event) {
 
   loading.value = true
 
-  // Try to extract signature and certificate from the script file
-  const { signature, certificate } = await extractSignatureAndCert(file)
-  if (!signature || !certificate) {
-    result.value = { verified: false }
-    loading.value = false
-    return
-  }
-
-  // Prepare form data for backend verification
+  // Only send the .ps1 file to backend, let backend handle verification
   const formData = new FormData()
   formData.append('script', file)
-  formData.append('signature', signature)
-  formData.append('certificate', new File([certificate], 'cert.pem'))
 
-  // Call backend verify endpoint
   const res = await fetch('/api/verify', {
     method: 'POST',
     body: formData
   })
+
   result.value = await res.json()
   loading.value = false
-}
-
-// Try to extract signature and certificate from the script file
-async function extractSignatureAndCert(file) {
-  const text = await file.text()
-  // Try PowerShell signature block first (for .ps1 files)
-  // PowerShell signature block format:
-  // # SIG # Begin signature block
-  // ...base64 signature...
-  // # SIG # End signature block
-  let signature = null
-  let certificate = null
-
-  // Try PowerShell signature block
-  const psSigMatch = text.match(/# SIG # Begin signature block[\r\n]+([\s\S]+?)# SIG # End signature block/)
-  if (psSigMatch) {
-    // Remove all "# SIG #" and whitespace, join base64 lines
-    const base64Lines = psSigMatch[1]
-      .split('\n')
-      .map(line => line.replace(/^# SIG #/, '').replace(/[\r\n]/g, '').trim())
-      .filter(Boolean)
-    signature = base64Lines.join('')
-    // Try to extract embedded certificate (if present)
-    // Not always possible, so fallback to null
-    // (Backend should handle signature/cert extraction for PS1)
-  }
-
-  // Fallback to PEM blocks (for text-based signatures)
-  if (!signature) {
-    const sigMatch = text.match(/-----BEGIN SIGNATURE-----\s*([\s\S]+?)\s*-----END SIGNATURE-----/)
-    signature = sigMatch ? sigMatch[1].replace(/\s+/g, '') : null
-  }
-  if (!certificate) {
-    const certMatch = text.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/)
-    certificate = certMatch ? certMatch[0] : null
-  }
-
-  return { signature, certificate }
 }
 </script>

@@ -18,13 +18,6 @@
               Sign Script
             </button>
             <button
-              @click="activeTab = 'verify'"
-              :class="activeTab === 'verify' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-              class="whitespace-nowrap pb-2 px-1 border-b-2 font-medium text-sm"
-            >
-              Verify Signature
-            </button>
-            <button
               @click="activeTab = 'about'"
               :class="activeTab === 'about' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
               class="whitespace-nowrap pb-2 px-1 border-b-2 font-medium text-sm"
