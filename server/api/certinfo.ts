@@ -1,6 +1,9 @@
 import { readFile } from 'fs/promises'
+import fs from 'fs/promises'
 import path from 'path'
 import { spawn } from 'child_process'
+import { tmpdir } from 'os'
+import { randomUUID } from 'crypto'
 
 export default defineEventHandler(async (event) => {
   const url = new URL(event.req.url || '', 'http://localhost')
@@ -12,55 +15,63 @@ export default defineEventHandler(async (event) => {
   if (!password) {
     return { error: 'Missing password.' }
   }
+
   const certPath = path.join('/certs', name)
-  // Extract certificate info using openssl
+  const tmpPemPath = path.join(tmpdir(), `cert-${randomUUID()}.pem`)
+
   try {
-    // Extract the certificate to PEM
-    const pem = await new Promise<string>((resolve, reject) => {
+    // Step 1: extract PEM from PFX
+    await new Promise((resolve, reject) => {
       const args = [
         'pkcs12',
         '-in', certPath,
         '-clcerts',
         '-nokeys',
         '-passin', `pass:${password}`,
-        '-out', '/tmp/tmpcert.pem'
+        '-out', tmpPemPath
       ]
       const proc = spawn('openssl', args)
-      proc.on('close', async (code) => {
-        if (code === 0) {
-          try {
-            const pemData = await readFile('/tmp/tmpcert.pem', 'utf8')
-            resolve(pemData)
-          } catch (e) {
-            reject(e)
-          }
-        } else {
-          reject(new Error('Failed to extract certificate'))
-        }
-      })
+      proc.on('close', code => (code === 0 ? resolve(null) : reject(new Error('openssl pkcs12 failed'))))
       proc.on('error', reject)
     })
-    // Parse certificate info
+
+    // Step 2: read x509 fields directly from PEM file
     const info = await new Promise((resolve, reject) => {
-      const proc = spawn('openssl', ['x509', '-noout', '-subject', '-issuer', '-dates', '-serial', '-text'], { stdio: ['pipe', 'pipe', 'ignore'] })
+      const proc = spawn('openssl', [
+        'x509', '-in', tmpPemPath,
+        '-noout', '-subject', '-issuer', '-dates', '-serial', '-text'
+      ])
       let out = ''
-      proc.stdout.on('data', d => { out += d.toString() })
+      proc.stdout.on('data', chunk => (out += chunk.toString()))
       proc.on('close', () => {
-        // Parse fields
-        const subject = out.match(/subject=([^\n]+)/)?.[1]?.trim() || ''
-        const issuer = out.match(/issuer=([^\n]+)/)?.[1]?.trim() || ''
+        console.log('[certinfo] openssl x509 output:', out)
+        let subject = out.match(/subject=([^\n]+)/)?.[1]?.trim() || ''
+        let issuer = out.match(/issuer=([^\n]+)/)?.[1]?.trim() || ''
         const validFrom = out.match(/notBefore=([^\n]+)/)?.[1]?.trim() || ''
         const validTo = out.match(/notAfter=([^\n]+)/)?.[1]?.trim() || ''
         const serialNumber = out.match(/serial=([^\n]+)/)?.[1]?.trim() || ''
         const ca = /CA:TRUE/i.test(out)
-        resolve({ subject, issuer, validFrom, validTo, serialNumber, ca })
+
+        // Fallback: try to extract CN from Subject: ... line if subject is empty
+        if (!subject) {
+          const subjectLine = out.match(/Subject: ([^\n]+)/i)?.[1] || ''
+          const cn = subjectLine.match(/CN\s*=\s*([^,]+)/)?.[1] || ''
+          if (cn) subject = `CN=${cn}`
+        }
+
+        const result = { subject, issuer, validFrom, validTo, serialNumber, ca }
+        console.log('[certinfo] parsed result:', result)
+        resolve(result)
       })
-      proc.stdin.write(pem)
-      proc.stdin.end()
+      proc.stderr.on('data', () => {}) // suppress error
       proc.on('error', reject)
     })
+
+    await fs.rm(tmpPemPath, { force: true })
     return info
+
   } catch (e) {
+    console.error('[certinfo] error:', e)
     return { error: 'Unable to extract certificate info.' }
   }
 })

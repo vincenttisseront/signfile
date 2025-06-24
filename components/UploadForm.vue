@@ -177,24 +177,14 @@
             {{ showCertDetails ? 'Hide details' : 'Show details' }}
           </button>
         </div>
-        <Transition
-          enter-active-class="transition duration-300 ease-out"
-          enter-from-class="opacity-0 -translate-y-1 scale-95"
-          enter-to-class="opacity-100 translate-y-0 scale-100"
-          leave-active-class="transition duration-200 ease-in"
-          leave-from-class="opacity-100 translate-y-0 scale-100"
-          leave-to-class="opacity-0 -translate-y-1 scale-95"
-        >
-          <div
-            v-if="showCertDetails"
-            class="space-y-1"
-          >
+        <Transition name="fade">
+          <div v-if="showCertDetails" class="space-y-1">
             <div><span class="font-medium">Subject:</span> {{ certInfo.subject }}</div>
             <div><span class="font-medium">Issuer:</span> {{ certInfo.issuer }}</div>
             <div v-if="certInfo.validFrom"><span class="font-medium">Valid from:</span> {{ certInfo.validFrom }}</div>
             <div v-if="certInfo.validTo"><span class="font-medium">Valid to:</span> {{ certInfo.validTo }}</div>
             <div v-if="certInfo.serialNumber"><span class="font-medium">Serial:</span> {{ certInfo.serialNumber }}</div>
-            <div v-if="certInfo.ca !== undefined"><span class="font-medium">CA Root ? :</span> {{ certInfo.ca ? 'Yes' : 'No' }}</div>
+            <div v-if="certInfo.ca !== undefined"><span class="font-medium">CA:</span> {{ certInfo.ca ? 'Yes' : 'No' }}</div>
           </div>
         </Transition>
       </div>
@@ -361,57 +351,17 @@ function handleStoredCert() {
   passwordEntered.value = false
   passwordError.value = ''
   passwordRequired.value = true
-  showPasswordPopup.value = true
+  // Ensure the password popup is shown immediately after selecting a stored cert
+  setTimeout(() => { showPasswordPopup.value = true }, 0)
   logWithTimestamp(`Selected stored certificate: ${selectedStoredCert.value}`)
 }
 
-function handleCertFile(event) {
-  if (certSource.value !== 'upload') return
-  selectedStoredCert.value = ''
-  const file = event.target.files[0]
-  if (!file) return
-  certFile.value = file
-  certFileData.value = null
-  password.value = ''
-  passwordEntered.value = false
-  passwordError.value = ''
-  logWithTimestamp('Reading certificate file...')
-  const reader = new FileReader()
-  reader.onload = async () => {
-    certFileData.value = reader.result
-    logWithTimestamp(`Loaded certificate file: ${certFile.value?.name}`)
-    // Always require password for .pfx, let backend validate
-    if (certFile.value.name.endsWith('.pfx')) {
-      passwordRequired.value = true
-      showPasswordPopup.value = true
-      logWithTimestamp('Certificate is a .pfx file. Please enter password.')
-    } else {
-      passwordRequired.value = false
-      passwordEntered.value = true
-      logWithTimestamp('Certificate is not password protected.')
-    }
-  }
-  reader.readAsArrayBuffer(file)
-}
-
-function clearCert() {
-  certFile.value = null
-  certFileData.value = null
-  password.value = ''
-  showPasswordPopup.value = false
-  passwordRequired.value = false
-  passwordEntered.value = false
-  passwordError.value = ''
-  showUnloadConfirm.value = false
-  logWithTimestamp('Certificate cleared.')
-  // Reload the GUI (reset state)
-  setTimeout(() => window.location.reload(), 100)
-}
-
+// Called when user clicks "Cancel" in password popup
 function cancelPassword() {
   clearCert()
 }
 
+// Called when user clicks "OK" in password popup
 function submitPassword() {
   if (!password.value) {
     passwordError.value = 'Password is required.'
@@ -608,6 +558,19 @@ function cancelLoadedCert() {
   logWithTimestamp('Cancelled loaded certificate.');
 }
 
+// Add this function to your <script setup> block:
+function clearCert() {
+  certFile.value = null
+  certFileData.value = null
+  password.value = ''
+  passwordEntered.value = false
+  passwordError.value = ''
+  passwordRequired.value = false
+  showPasswordPopup.value = false
+  showUnloadConfirm.value = false
+  logWithTimestamp('Certificate cleared.')
+}
+
 // Watch for certSource changes to reset state
 watch(certSource, (val) => {
   if (val === 'upload') {
@@ -619,6 +582,9 @@ watch(certSource, (val) => {
     passwordError.value = ''
     passwordRequired.value = false
     showPasswordPopup.value = false
+    showStoredCertInfoPopup.value = false
+    storedCertInfo.value = null
+    storedCertInfoLoading.value = false
     logWithTimestamp('Switched to upload certificate.')
   } else if (val === 'stored') {
     certFile.value = null
@@ -628,6 +594,9 @@ watch(certSource, (val) => {
     passwordError.value = ''
     passwordRequired.value = false
     showPasswordPopup.value = false
+    showStoredCertInfoPopup.value = false
+    storedCertInfo.value = null
+    storedCertInfoLoading.value = false
     logWithTimestamp('Switched to stored certificate.')
   }
 })
@@ -688,25 +657,41 @@ async function confirmSaveCert() {
   await saveCertToContainer()
 }
 
-// Fetch certificate info for stored cert after password accepted
-watch(
-  () => [selectedStoredCert.value, certSource.value, passwordEntered.value, password.value],
-  async ([cert, source, pwEntered, pw]) => {
-    if (cert && source === 'stored' && pwEntered && pw) {
-      certInfo.value = null
-      try {
-        const res = await fetch(`/api/certinfo?name=${encodeURIComponent(cert)}&password=${encodeURIComponent(pw)}`)
-        if (res.ok) {
-          certInfo.value = await res.json()
-        } else {
-          certInfo.value = { subject: 'Unable to read certificate info', issuer: '', validFrom: '', validTo: '', serialNumber: '', ca: '' }
-        }
-      } catch {
-        certInfo.value = { subject: 'Unable to read certificate info', issuer: '', validFrom: '', validTo: '', serialNumber: '', ca: '' }
-      }
+function handleCertFile(event) {
+  if (certSource.value !== 'upload') return
+  selectedStoredCert.value = ''
+  const file = event.target.files[0]
+  if (!file) return
+  certFile.value = file
+  certFileData.value = null
+  password.value = ''
+  passwordEntered.value = false
+  passwordError.value = ''
+  logWithTimestamp('Reading certificate file...')
+  const reader = new FileReader()
+  reader.onload = async () => {
+    certFileData.value = reader.result
+    logWithTimestamp(`Loaded certificate file: ${certFile.value?.name}`)
+    // Always require password for .pfx, let backend validate
+    if (certFile.value.name.endsWith('.pfx')) {
+      passwordRequired.value = true
+      setTimeout(() => { showPasswordPopup.value = true }, 0)
+      logWithTimestamp('Certificate is a .pfx file. Please enter password.')
     } else {
-      certInfo.value = null
+      passwordRequired.value = false
+      passwordEntered.value = true
+      logWithTimestamp('Certificate is not password protected.')
     }
   }
-)
+  reader.readAsArrayBuffer(file)
+}
 </script>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+</style>
