@@ -93,7 +93,7 @@
         <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
           <span class="inline-block w-2 h-2 bg-green-400 rounded-full"></span>
           <template v-if="certFile">
-            Certificate loaded: {{ certFile.name }}
+            Certificate loaded: {{ certFile?.name || '' }}
           </template>
           <template v-else-if="selectedStoredCert && certSource === 'stored'">
             Certificate loaded: {{ selectedStoredCert }}

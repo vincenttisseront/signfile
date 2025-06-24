@@ -41,10 +41,25 @@ export default defineEventHandler(async (event) => {
 
     if (scriptFile) {
       const text = await scriptFile.text()
-      const sigMatch = text.match(/-----BEGIN SIGNATURE-----\s*([\s\S]+?)\s*-----END SIGNATURE-----/)
-      const certMatch = text.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/)
-      signatureBase64 = sigMatch ? sigMatch[1].replace(/\s+/g, '') : null
-      certificatePem = certMatch ? certMatch[0] : null
+      // Try PowerShell signature block first
+      const psSigMatch = text.match(/# SIG # Begin signature block[\r\n]+([\s\S]+?)# SIG # End signature block/)
+      if (psSigMatch) {
+        // Remove all "# SIG #" and whitespace, join base64 lines
+        const base64Lines = psSigMatch[1]
+          .split('\n')
+          .map(line => line.replace(/^# SIG #/, '').replace(/[\r\n]/g, '').trim())
+          .filter(Boolean)
+        signatureBase64 = base64Lines.join('')
+        // No embedded cert in PS1, so try to extract PEM cert as fallback
+        const certMatch = text.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/)
+        certificatePem = certMatch ? certMatch[0] : null
+      } else {
+        // Fallback to PEM blocks (for text-based signatures)
+        const sigMatch = text.match(/-----BEGIN SIGNATURE-----\s*([\s\S]+?)\s*-----END SIGNATURE-----/)
+        const certMatch = text.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/)
+        signatureBase64 = sigMatch ? sigMatch[1].replace(/\s+/g, '') : null
+        certificatePem = certMatch ? certMatch[0] : null
+      }
     }
 
     if (!scriptFile || !signatureBase64 || !certificatePem) {
