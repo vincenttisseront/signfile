@@ -5,7 +5,7 @@
     <div>
       <p>
         <span class="font-semibold">App:</span> Script Signer & Verifier<br>
-        <span class="font-semibold">Version:</span> 1.0.0
+        <span class="font-semibold">Version:</span> 1.0.1
       </p>
     </div>
 
@@ -113,6 +113,14 @@
         <li>Store and manage certificates securely</li>
         <li>Supports PowerShell signature blocks</li>
         <li>Uses <a href="https://ebourg.github.io/jsign/" target="_blank" class="text-blue-600 underline">jsign</a> for signing</li>
+      </ul>
+    </div>
+
+    <div>
+      <span class="font-semibold">What's new:</span>
+      <ul class="list-disc ml-6 text-sm text-gray-700">
+        <li><strong>1.0.1:</strong> Improved certificate info display, fixed password popup logic, removed unused certificate info popup for password-protected certs, and improved file cleanup after signing.</li>
+        <li><strong>1.0.0:</strong> Initial release: sign scripts, manage certificates, PowerShell and OpenSSL support.</li>
       </ul>
     </div>
 
