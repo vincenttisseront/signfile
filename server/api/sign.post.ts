@@ -102,7 +102,6 @@ export default defineEventHandler(async (event) => {
         // PowerShell script: sign using jsign (Authenticode)
         const signedScriptPath = path.join(tmpdir(), `signed-${randomUUID()}.ps1`);
 
-        // jsign does not support --output for scripts, so overwrite the input file
         // Copy script to temp file for signing
         await fs.copyFile(scriptPath, signedScriptPath);
 
@@ -146,7 +145,11 @@ export default defineEventHandler(async (event) => {
         event.node.res.setHeader('Content-Disposition', `attachment; filename="${signedFilename}"`);
         event.node.res.end(signedScript);
 
+        // Remove both the signed and original script files
         await fs.rm(signedScriptPath, { force: true });
+        if (scriptPath) {
+          await fs.rm(scriptPath, { force: true });
+        }
         await fs.rm(tmpKey, { force: true });
         console.log('[sign.post.ts] Signing process complete, response sent.');
         return;
