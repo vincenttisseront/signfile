@@ -12,7 +12,7 @@
     <div>
       <p>
         <span class="font-semibold">jsign version:</span>
-        <span v-if="versions.versions.jsign.current">
+        <span v-if="versions.versions.jsign.current && versions.versions.jsign.current !== 'Unavailable'">
           {{ versions.versions.jsign.current }}
           <span v-if="jsignStatus === 'latest'" title="Up to date" class="inline-block align-middle ml-1 text-green-600">
             <svg class="inline w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -28,7 +28,7 @@
             <span class="ml-1 text-xs">Latest: {{ versions.versions.jsign.latest }}</span>
           </span>
         </span>
-        <span v-else>Loading...</span>
+        <span v-else class="text-red-600">Unavailable (jsign not found in container)</span>
       </p>
 
       <p>

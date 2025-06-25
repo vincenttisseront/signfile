@@ -53,5 +53,8 @@ ENV NODE_ENV=production
 ENV TZ=Europe/Paris
 ENV NITRO_HOST=0.0.0.0
 
+# Set JSIGN_VERSION in runtime stage as well
+ENV JSIGN_VERSION=7.1
+
 EXPOSE 3000
 CMD ["node", ".output/server/index.mjs"]
