@@ -13,5 +13,5 @@ export default defineNuxtConfig({
     head: {
       title: 'iBanFirst - Signing App'
     }
-  }
+  },
 })
