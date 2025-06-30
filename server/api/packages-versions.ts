@@ -156,12 +156,13 @@ async function getNpmPackages() {
         if (match) repo = match[1].replace(/\.git$/, '')
       }
     } catch {}
-    if (repo) {
-      // Try GitHub releases
+    let isTypesPackage = /^@types\//.test(name)
+    if (isTypesPackage) {
+      // For @types/* packages, fetch all versions and pick the highest semver
       latest = await new Promise(resolve => {
         https.get({
-          hostname: 'api.github.com',
-          path: `/repos/${repo}/releases/latest`,
+          hostname: 'registry.npmjs.org',
+          path: `/${name.replace(/^@/, '%40')}`,
           headers: { 'User-Agent': 'SignFile-App' }
         }, res => {
           let data = ''
@@ -169,17 +170,74 @@ async function getNpmPackages() {
           res.on('end', () => {
             try {
               const json = JSON.parse(data)
-              const ghVersion = (json.tag_name || json.name || 'Unavailable').replace(/^v/, '')
-              if (ghVersion && ghVersion !== 'Unavailable') resolve(ghVersion)
-              else resolve('Unavailable')
+              const versions = Object.keys(json.versions || {})
+              if (versions.length > 0) {
+                // Sort semver descending
+                versions.sort((a, b) => {
+                  const pa = a.split('.').map(Number)
+                  const pb = b.split('.').map(Number)
+                  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+                    if ((pa[i] || 0) > (pb[i] || 0)) return -1
+                    if ((pa[i] || 0) < (pb[i] || 0)) return 1
+                  }
+                  return 0
+                })
+                resolve(versions[0])
+              } else {
+                resolve('Unavailable')
+              }
             } catch {
               resolve('Unavailable')
             }
           })
         }).on('error', () => resolve('Unavailable'))
       })
-      // Fallback to npm if GitHub release is unavailable
-      if (latest === 'Unavailable') {
+    } else {
+      if (repo) {
+        // Try GitHub releases
+        latest = await new Promise(resolve => {
+          https.get({
+            hostname: 'api.github.com',
+            path: `/repos/${repo}/releases/latest`,
+            headers: { 'User-Agent': 'SignFile-App' }
+          }, res => {
+            let data = ''
+            res.on('data', chunk => (data += chunk))
+            res.on('end', () => {
+              try {
+                const json = JSON.parse(data)
+                const ghVersion = (json.tag_name || json.name || 'Unavailable').replace(/^v/, '')
+                if (ghVersion && ghVersion !== 'Unavailable') resolve(ghVersion)
+                else resolve('Unavailable')
+              } catch {
+                resolve('Unavailable')
+              }
+            })
+          }).on('error', () => resolve('Unavailable'))
+        })
+        // Fallback to npm if GitHub release is unavailable
+        if (latest === 'Unavailable') {
+          latest = await new Promise(resolve => {
+            https.get({
+              hostname: 'registry.npmjs.org',
+              path: `/${name.replace(/^@/, '%40')}/latest`,
+              headers: { 'User-Agent': 'SignFile-App' }
+            }, res => {
+              let data = ''
+              res.on('data', chunk => (data += chunk))
+              res.on('end', () => {
+                try {
+                  const json = JSON.parse(data)
+                  resolve(json.version || 'Unavailable')
+                } catch {
+                  resolve('Unavailable')
+                }
+              })
+            }).on('error', () => resolve('Unavailable'))
+          })
+        }
+      } else {
+        // Fallback to npm registry
         latest = await new Promise(resolve => {
           https.get({
             hostname: 'registry.npmjs.org',
@@ -199,26 +257,6 @@ async function getNpmPackages() {
           }).on('error', () => resolve('Unavailable'))
         })
       }
-    } else {
-      // Fallback to npm registry
-      latest = await new Promise(resolve => {
-        https.get({
-          hostname: 'registry.npmjs.org',
-          path: `/${name.replace(/^@/, '%40')}/latest`,
-          headers: { 'User-Agent': 'SignFile-App' }
-        }, res => {
-          let data = ''
-          res.on('data', chunk => (data += chunk))
-          res.on('end', () => {
-            try {
-              const json = JSON.parse(data)
-              resolve(json.version || 'Unavailable')
-            } catch {
-              resolve('Unavailable')
-            }
-          })
-        }).on('error', () => resolve('Unavailable'))
-      })
     }
     // Always fallback to npm registry if latest is still 'Unavailable' (network or GitHub issues)
     if (latest === 'Unavailable') {

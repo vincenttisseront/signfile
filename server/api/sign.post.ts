@@ -1,3 +1,4 @@
+// @ts-expect-error Formidable v3+ ships its own types, but TS may not find them
 import formidable from 'formidable'
 import fs from 'fs/promises'
 import path from 'path'
@@ -47,7 +48,7 @@ export default defineEventHandler(async (event) => {
 
     console.log('[sign.post.ts] Parsing form data...');
     const [fields, files] = await new Promise<[formidable.Fields, formidable.Files]>((resolve, reject) => {
-      form.parse(event.node.req, (err, fields, files) => {
+      form.parse(event.node.req, (err: any, fields: formidable.Fields, files: formidable.Files) => {
         if (err) reject(err)
         else resolve([fields, files])
       })

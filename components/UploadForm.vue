@@ -353,6 +353,41 @@ watch(certSource, (val) => {
   }
 })
 
+// Watch for certFile changes (uploaded cert)
+watch(certFile, (val, oldVal) => {
+  if (val && val !== oldVal && certSource.value === 'upload') {
+    password.value = ''
+    passwordEntered.value = false
+    passwordError.value = ''
+    passwordRequired.value = true
+    showPasswordPopup.value = true
+    logWithTimestamp('Certificate file selected, password popup shown.')
+  }
+})
+
+// Watch for selectedStoredCert changes (stored cert)
+watch(selectedStoredCert, (val, oldVal) => {
+  if (val && val !== oldVal && certSource.value === 'stored') {
+    password.value = ''
+    passwordEntered.value = false
+    passwordError.value = ''
+    passwordRequired.value = true
+    showPasswordPopup.value = true
+    logWithTimestamp('Stored certificate selected, password popup shown.')
+  }
+})
+
+// Always show password popup when certFile or selectedStoredCert changes and password is required
+watch([certFile, selectedStoredCert, certSource], ([file, stored, source]) => {
+  if ((file && source === 'upload') || (stored && source === 'stored')) {
+    passwordEntered.value = false
+    passwordError.value = ''
+    if (passwordRequired.value) {
+      showPasswordPopup.value = true
+    }
+  }
+})
+
 watch(certFile, (val) => {
   // Show save button only if a cert is loaded, not already in storedCerts, and certSource is 'upload'
   if (
@@ -393,6 +428,7 @@ function handleStoredCert() {
     }
     passwordRequired.value = true
     passwordEntered.value = false
+    passwordError.value = ''
     showPasswordPopup.value = true // <-- Force popup for stored cert too
   } else {
     certFile.value = null
@@ -666,6 +702,7 @@ function handleCertFile(event) {
   certFile.value = file // Store the File object only in this ref
   passwordRequired.value = true
   passwordEntered.value = false
+  passwordError.value = ''
   showPasswordPopup.value = true
 }
 </script>
