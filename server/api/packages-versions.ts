@@ -1,6 +1,7 @@
+import fs from 'fs/promises'
+import path from 'path'
 import { spawn } from 'child_process'
 import https from 'https'
-import path from 'path'
 
 // --- Version Helpers ---
 function isOutdated(current: string, latest: string): boolean {
@@ -119,13 +120,141 @@ async function getLatestOpenJDK17(): Promise<string> {
   })
 }
 
+// --- NPM Package Version Helpers ---
+async function getNpmPackages() {
+  const fs = await import('fs/promises')
+  const path = await import('path')
+  const https = await import('https')
+
+  // Read package.json
+  const pkgPath = path.join(process.cwd(), 'package.json')
+  const nodeModulesPath = path.join(process.cwd(), 'node_modules')
+  let pkgJson = { dependencies: {}, devDependencies: {} }
+  try {
+    pkgJson = JSON.parse(await fs.readFile(pkgPath, 'utf8'))
+  } catch {}
+  const allDeps = {
+    ...(pkgJson.dependencies || {}),
+    ...(pkgJson.devDependencies || {})
+  }
+  const pkgs = Object.keys(allDeps)
+  const results = await Promise.all(pkgs.map(async name => {
+    let current = 'Unavailable', latest = 'Unavailable', outdated = false
+    // Try to read installed version from node_modules
+    try {
+      const modPkg = JSON.parse(await fs.readFile(path.join(nodeModulesPath, name, 'package.json'), 'utf8'))
+      current = modPkg.version || 'Unavailable'
+    } catch {}
+    // Fetch latest version from GitHub releases if possible, else fallback to npm
+    let repo = null
+    try {
+      // Try to get repo from package.json
+      const modPkg = JSON.parse(await fs.readFile(path.join(nodeModulesPath, name, 'package.json'), 'utf8'))
+      if (modPkg.repository && typeof modPkg.repository === 'object' && modPkg.repository.url) {
+        // e.g. "git+https://github.com/nuxt/nuxt.git"
+        const match = modPkg.repository.url.match(/github.com[:/](.+?)(?:\.git)?$/i)
+        if (match) repo = match[1].replace(/\.git$/, '')
+      }
+    } catch {}
+    if (repo) {
+      // Try GitHub releases
+      latest = await new Promise(resolve => {
+        https.get({
+          hostname: 'api.github.com',
+          path: `/repos/${repo}/releases/latest`,
+          headers: { 'User-Agent': 'SignFile-App' }
+        }, res => {
+          let data = ''
+          res.on('data', chunk => (data += chunk))
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(data)
+              const ghVersion = (json.tag_name || json.name || 'Unavailable').replace(/^v/, '')
+              if (ghVersion && ghVersion !== 'Unavailable') resolve(ghVersion)
+              else resolve('Unavailable')
+            } catch {
+              resolve('Unavailable')
+            }
+          })
+        }).on('error', () => resolve('Unavailable'))
+      })
+      // Fallback to npm if GitHub release is unavailable
+      if (latest === 'Unavailable') {
+        latest = await new Promise(resolve => {
+          https.get({
+            hostname: 'registry.npmjs.org',
+            path: `/${name.replace(/^@/, '%40')}/latest`,
+            headers: { 'User-Agent': 'SignFile-App' }
+          }, res => {
+            let data = ''
+            res.on('data', chunk => (data += chunk))
+            res.on('end', () => {
+              try {
+                const json = JSON.parse(data)
+                resolve(json.version || 'Unavailable')
+              } catch {
+                resolve('Unavailable')
+              }
+            })
+          }).on('error', () => resolve('Unavailable'))
+        })
+      }
+    } else {
+      // Fallback to npm registry
+      latest = await new Promise(resolve => {
+        https.get({
+          hostname: 'registry.npmjs.org',
+          path: `/${name.replace(/^@/, '%40')}/latest`,
+          headers: { 'User-Agent': 'SignFile-App' }
+        }, res => {
+          let data = ''
+          res.on('data', chunk => (data += chunk))
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(data)
+              resolve(json.version || 'Unavailable')
+            } catch {
+              resolve('Unavailable')
+            }
+          })
+        }).on('error', () => resolve('Unavailable'))
+      })
+    }
+    // Always fallback to npm registry if latest is still 'Unavailable' (network or GitHub issues)
+    if (latest === 'Unavailable') {
+      latest = await new Promise(resolve => {
+        https.get({
+          hostname: 'registry.npmjs.org',
+          path: `/${name.replace(/^@/, '%40')}/latest`,
+          headers: { 'User-Agent': 'SignFile-App' }
+        }, res => {
+          let data = ''
+          res.on('data', chunk => (data += chunk))
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(data)
+              resolve(json.version || 'Unavailable')
+            } catch {
+              resolve('Unavailable')
+            }
+          })
+        }).on('error', () => resolve('Unavailable'))
+      })
+    }
+    outdated = current !== 'Unavailable' && latest !== 'Unavailable' && current !== latest
+    return { name, current, latest, outdated }
+  }))
+  return results
+}
+
 // --- Final API Handler ---
 export default defineEventHandler(async () => {
-  const [jsign, opensslInfo, openjdk, baseImage] = await Promise.all([
+  const [jsign, opensslInfo, openjdk, baseImage, npmPackages] = await Promise.all([
     getJsignVersion(),
     getOpenSSLVersion(),
     getOpenJDKVersion(),
-    getBaseImage()
+    getBaseImage(),
+    getNpmPackages()
   ])
 
   const opensslOutdated = opensslInfo.current !== 'Unavailable'
@@ -146,6 +275,7 @@ export default defineEventHandler(async () => {
       openjdk: {
         current: openjdk,
       }
-    }
+    },
+    npmPackages
   }
 })

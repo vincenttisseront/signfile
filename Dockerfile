@@ -47,6 +47,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=build /app/.output /app/.output
 COPY --from=build /usr/local/bin/jsign* /usr/local/bin/
 COPY --from=build /usr/local/bin/jsign.jar /usr/local/bin/jsign.jar
+# Copy node_modules for runtime (needed for version checks and runtime deps)
+COPY --from=build /app/node_modules /app/node_modules
+COPY --from=build /app/package.json /app/package.json
+COPY --from=build /app/package-lock.json /app/package-lock.json
 
 # Nuxt runtime environment
 ENV NODE_ENV=production

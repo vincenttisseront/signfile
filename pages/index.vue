@@ -29,9 +29,12 @@
 
         <!-- Tab content -->
         <div>
-          <UploadForm v-if="activeTab === 'sign'" />
-          <VerifyForm v-else-if="activeTab === 'verify'" />
-          <About v-else-if="activeTab === 'about'" />
+          <div v-if="activeTab === 'sign'">
+            <UploadForm />
+          </div>
+          <div v-else-if="activeTab === 'about'">
+            <About />
+          </div>
         </div>
       </div>
 
@@ -50,13 +53,23 @@
 </template>
 
 <script setup>
+import { ref, provide, watch, onMounted } from 'vue'
+import { useState } from '#app'
 import UploadForm from '~/components/UploadForm.vue'
-import VerifyForm from '~/components/VerifyForm.vue'
 import About from '~/components/About.vue'
-import { ref, provide } from 'vue'
 
 const logs = ref('')
 provide('logs', logs)
 
-const activeTab = ref('sign')
+// Use Nuxt useState for SSR/CSR consistency
+const activeTab = useState('activeTab', () => 'sign')
+
+onMounted(() => {
+  const savedTab = localStorage.getItem('activeTab')
+  if (savedTab) activeTab.value = savedTab
+})
+
+watch(activeTab, (val) => {
+  if (process.client) localStorage.setItem('activeTab', val)
+})
 </script>
