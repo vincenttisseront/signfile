@@ -289,10 +289,8 @@ import { useUIState } from '@/stores/uiState'
 const uiState = useUIState()
 const hydratedOrSSR = computed(() => uiState.hydrated || process.server)
 
-const certFile = computed({
-  get: () => uiState.certFile,
-  set: (val) => uiState.setCertFile(val)
-})
+// Remove certFile from Pinia, use a local ref for the File object
+const certFile = ref(null)
 const password = computed({
   get: () => uiState.password,
   set: (val) => uiState.setPassword(val)
@@ -369,6 +367,12 @@ watch(certFile, (val) => {
   }
 })
 
+watch(passwordRequired, (val) => {
+  if (val && !passwordEntered.value) {
+    showPasswordPopup.value = true
+  }
+})
+
 function logWithTimestamp(message) {
   const now = new Date()
   const timestamp = now.toLocaleTimeString()
@@ -389,6 +393,7 @@ function handleStoredCert() {
     }
     passwordRequired.value = true
     passwordEntered.value = false
+    showPasswordPopup.value = true // <-- Force popup for stored cert too
   } else {
     certFile.value = null
     password.value = ''
@@ -421,8 +426,11 @@ function submitPassword() {
 async function validateCertificatePassword() {
   logWithTimestamp('Validating certificate password...')
   const formData = new FormData()
-  // Do NOT send script field at all for password check
-  formData.append('certificate', new File([certFile.value.data], certFile.value.name))
+  if (selectedStoredCert.value && certSource.value === 'stored') {
+    formData.append('storedCert', selectedStoredCert.value)
+  } else {
+    formData.append('certificate', certFile.value) // Use File object
+  }
   formData.append('password', password.value)
 
   try {
@@ -464,7 +472,7 @@ async function handleSubmit() {
     formData.append('storedCert', selectedStoredCert.value)
     logWithTimestamp(`Using stored certificate: ${selectedStoredCert.value}`)
   } else {
-    formData.append('certificate', new File([certFile.value.data], certFile.value.name))
+    formData.append('certificate', certFile.value) // Use File object
   }
   if (password.value) {
     formData.append('password', password.value)
@@ -655,17 +663,10 @@ async function confirmSaveCert() {
 function handleCertFile(event) {
   const file = event.target.files[0]
   if (!file) return
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    certFile.value = {
-      name: file.name,
-      data: e.target.result.split(',')[1],
-      type: file.name.endsWith('.pfx') ? 'pfx' : 'pem',
-    }
-    passwordRequired.value = true
-    passwordEntered.value = false
-  }
-  reader.readAsDataURL(file)
+  certFile.value = file // Store the File object only in this ref
+  passwordRequired.value = true
+  passwordEntered.value = false
+  showPasswordPopup.value = true
 }
 </script>
 
