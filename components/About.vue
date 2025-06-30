@@ -2,7 +2,7 @@
   <div class="p-6 max-w-6xl mx-auto bg-white rounded-2xl shadow-xl space-y-6">
     <div class="text-center">
       <h2 class="text-2xl font-bold text-blue-700">Script Signer &amp; Verifier</h2>
-      <p class="text-sm text-gray-600">Version: 1.0.3</p>
+      <p class="text-sm text-gray-600">Version: 1.0.4</p>
     </div>
     <div class="overflow-x-auto">
       <table class="table-auto w-full border-separate border-spacing-y-6">
