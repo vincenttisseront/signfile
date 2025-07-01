@@ -1,16 +1,16 @@
 <template>
-  <div class="p-8 max-w-lg mx-auto bg-white rounded-2xl shadow-xl space-y-6 border border-gray-200">
-    <h2 class="text-xl font-semibold text-blue-700">Inspect File Signature</h2>
+  <div class="p-8 max-w-lg mx-auto bg-care rounded-2xl shadow-xl space-y-6 border border-gray-200">
+    <h2 class="text-xl font-semibold text-security">Inspect File Signature</h2>
     <form @submit.prevent class="space-y-4">
       <div>
-        <label class="block mb-1 font-medium text-gray-700" for="script">Upload Script File</label>
+        <label class="block mb-1 font-medium text-currency" for="script">Upload Script File</label>
         <input
           id="script"
           type="file"
           accept=".txt,.js,.ts,.json,.ps1"
           @change="handleScriptFile"
           required
-          class="block w-full text-gray-700 file:bg-gray-100 file:border-0 file:rounded-lg file:px-4 file:py-2 file:text-blue-700 file:font-medium file:cursor-pointer"
+          class="block w-full border border-gray-300 rounded p-2 bg-care text-modernity"
         />
       </div>
     </form>

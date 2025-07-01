@@ -8,7 +8,15 @@ const config: Config = {
     './app.vue'
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        modernity: '#140309', // Modernity
+        care: '#fffdf6',     // Care
+        security: '#8f40ff', // Security
+        currency: '#64ffa2', // Currency
+        energy: '#ff5249',   // Energy
+      },
+    },
   },
   plugins: [],
 }

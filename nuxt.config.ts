@@ -14,4 +14,10 @@ export default defineNuxtConfig({
       title: 'iBanFirst - Signing App'
     }
   },
+  runtimeConfig: {
+    public: {
+      oktaIssuer: process.env.OKTA_ISSUER,
+      oktaClientId: process.env.OKTA_CLIENT_ID
+    }
+  }
 })

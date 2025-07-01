@@ -2,3 +2,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom Modernity palette */
+:root {
+  --color-modernity: #140309;
+  --color-care: #fffdf6;
+  --color-security: #8f40ff;
+  --color-currency: #64ffa2;
+  --color-energy: #ff5249;
+}

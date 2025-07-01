@@ -1,4 +1,3 @@
-// @ts-expect-error Formidable v3+ ships its own types, but TS may not find them
 import formidable from 'formidable'
 import fs from 'fs/promises'
 import path from 'path'
