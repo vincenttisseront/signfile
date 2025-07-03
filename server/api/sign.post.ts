@@ -39,6 +39,9 @@ function runOpenSSL(args: string[], input?: Buffer): Promise<Buffer> {
 }
 
 export default defineEventHandler(async (event) => {
+  // Create variables at the handler scope so they can be accessed in the finally block
+  let tempDir = '';
+  
   try {
     const form = formidable({
       keepExtensions: true,
@@ -46,10 +49,35 @@ export default defineEventHandler(async (event) => {
     })
 
     console.log('[sign.post.ts] Parsing form data...');
+    
+    // Add request timestamp to help identify each request uniquely
+    const requestTimestamp = Date.now();
+    console.log(`[sign.post.ts] Request started at: ${requestTimestamp}`);
+    
+    // Create temp directory with unique name
+    tempDir = path.join(tmpdir(), `signfile-${requestTimestamp}-${randomUUID()}`);
+    try {
+      await fs.mkdir(tempDir, { recursive: true });
+      console.log(`[sign.post.ts] Created temp dir: ${tempDir}`);
+    } catch (dirErr) {
+      console.error(`[sign.post.ts] Failed to create temp dir: ${dirErr}`);
+      // Continue with default temp dir
+    }
+
+    // Configure formidable with specific upload dir to avoid conflicts
+    // @ts-ignore - uploadDir may not be in the typings but it's a valid option
+    form.uploadDir = tempDir;
+    
     const [fields, files] = await new Promise<[formidable.Fields, formidable.Files]>((resolve, reject) => {
       form.parse(event.node.req, (err: any, fields: formidable.Fields, files: formidable.Files) => {
-        if (err) reject(err)
-        else resolve([fields, files])
+        if (err) {
+          console.error(`[sign.post.ts] Form parse error: ${err}`);
+          reject(err);
+        } else {
+          console.log(`[sign.post.ts] Form parsed successfully. Fields: ${Object.keys(fields).join(', ')}`);
+          console.log(`[sign.post.ts] Files: ${Object.keys(files).map(key => `${key}:${files[key]?.[0]?.originalFilename}`).join(', ')}`);
+          resolve([fields, files]);
+        }
       })
     })
 
@@ -184,5 +212,15 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       message: 'Internal server error: ' + err.message
     }))
+  } finally {
+    // Clean up the temporary directory if we created one
+    try {
+      if (tempDir && tempDir !== tmpdir()) {
+        console.log(`[sign.post.ts] Cleaning up temp dir: ${tempDir}`);
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    } catch (cleanupErr) {
+      console.error(`[sign.post.ts] Error cleaning up temp dir: ${cleanupErr}`);
+    }
   }
 })

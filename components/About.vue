@@ -1,7 +1,7 @@
 <template>
   <div class="max-w-3xl mx-auto text-modernity">
     <h2 class="text-2xl font-bold mb-2 text-security h-[32px]">Script Signer &amp; Verifier</h2>
-    <div class="mb-2 text-sm text-currency font-semibold">Version: 1.0.5</div>
+    <div class="mb-2 text-sm text-currency font-semibold">Version: 1.0.6</div>
     <div class="mb-4">
       <span class="font-semibold text-currency">Developers:</span>
       <span class="ml-2">CyberSecurity Team</span>
@@ -36,6 +36,7 @@
       <span class="font-semibold text-currency">Version Information:</span>
       <div class="ml-4 mt-1 space-y-2">
         <ul class="list-disc pl-4 space-y-1 text-sm">
+          <li><span class="font-semibold">1.0.6:</span> Modernized layout with fullscreen design and left sidebar navigation. Moved authentication to the sidebar for global access. Unified CSS, fixed Tailwind integration, and improved responsive design.</li>
           <li><span class="font-semibold">1.0.5:</span> Okta authentication plugin: improved SSR/CSR safety, global Okta instance, and window.__oktaAuth fallback for debugging. Refactored plugin initialization and error handling.</li>
           <li><span class="font-semibold">1.0.4:</span> Added stored certificate management, certificate password validation, and user feedback improvements.</li>
           <li><span class="font-semibold">1.0.3:</span> Fixed compatibility issues with different certificate types and added better error handling.</li>

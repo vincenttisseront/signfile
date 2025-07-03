@@ -5,20 +5,17 @@
       ⚠ {{ errorMessage }}
     </div>
 
-    <!-- Authentication State -->
+    <!-- Admin Panel Information -->
     <div class="min-h-[40px]">
-      <div v-if="!isAuthenticated">        <button type="button" @click="loginWithOkta"
-          class="btn btn-primary btn-md">
-          Login with Okta
-        </button>
+      <div v-if="!isAuthenticated" class="p-4 text-center bg-energy/10 rounded-lg border border-energy/20 mb-6">
+        <p class="text-energy font-medium">🔒 Authentication Required</p>
+        <p class="text-sm mt-2">Please login using the sidebar menu to access admin features</p>
       </div>
-      <div v-else class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-currency">
-          👋 Welcome, <span class="underline">{{ user?.name || user?.email }}</span>
-        </h2>        <button @click="logout"
-          class="btn btn-secondary btn-sm ml-2">
-          Logout
-        </button>
+      <div v-else class="p-4 bg-security/10 rounded-lg border border-security/20 mb-6">
+        <h2 class="text-lg font-semibold text-security">
+          👋 Welcome to the Admin Panel
+        </h2>
+        <p class="text-sm mt-1">You have full access to all administrative features</p>
       </div>
     </div>
 
@@ -66,7 +63,7 @@
       <div class="p-4 rounded-lg border border-security/20 bg-care shadow-sm">
         <h2 class="text-xl font-semibold mb-4 text-security border-b border-security/30 pb-2">NPM Package Management</h2>
         <button @click="fetchPackages"
-          class="bg-currency text-modernity hover:bg-security hover:text-care transition-colors duration-200 rounded-lg px-4 py-2 font-medium mb-4">
+          class="btn btn-secondary btn-md mb-4">
           Refresh Packages
         </button>
         <ul class="space-y-2 min-h-[50px]">

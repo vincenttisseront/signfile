@@ -18,9 +18,27 @@
           <NuxtLink to="/admin" class="menu-item" active-class="active">
             <span class="menu-icon">⚙️</span>
             <span>Admin</span>
+            <span v-if="!authState.isAuthenticated" class="text-xs bg-energy/20 text-energy px-1 py-0.5 rounded ml-1">Auth Required</span>
           </NuxtLink>
         </div>
-        <div class="mt-auto pt-4 text-xs text-center text-modernity-50 border-t border-security-10">
+        <!-- Authentication State -->
+        <div class="mt-auto border-t border-security-10 pt-3 pb-2">
+          <div v-if="!authState.isAuthenticated" class="text-center">
+            <p class="text-xs mb-2 text-modernity-50">Authentication required for admin access</p>
+            <button type="button" @click="loginWithOkta" class="btn btn-primary btn-sm w-full">
+              Login with Okta
+            </button>
+          </div>
+          <div v-else class="text-center">
+            <p class="text-xs font-medium mb-1">
+              👋 <span class="text-security">{{ authState.user?.name || authState.user?.email }}</span>
+            </p>
+            <button @click="logout" class="btn btn-secondary btn-sm w-full mt-2 text-xs">
+              Logout
+            </button>
+          </div>
+        </div>
+        <div class="text-xs text-center text-modernity-50 pt-2 border-t border-security-10">
           &copy; {{ new Date().getFullYear() }} SignFile<br>
           iBanFirst - All Rights Reserved
         </div>
@@ -39,10 +57,12 @@
   </div>
 </template>
 
-<script setup>
-import { computed, ref } from 'vue';
+<script setup lang="ts">
+import { computed, ref, reactive, onMounted } from 'vue';
 import LayoutDebug from '~/components/LayoutDebug.vue';
 import { useLayout } from '~/composables/useLayout';
+import { useOkta } from '~/composables/useOkta';
+import { OktaAuth } from '@okta/okta-auth-js';
 
 // Use our layout composable to get responsive behavior
 const { isSmallScreen } = useLayout();
@@ -55,6 +75,207 @@ const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value;
 };
 
+// Authentication state
+const okta = useOkta() as OktaAuth | null;
+const authState = reactive({
+  isAuthenticated: false,
+  user: null as any,
+  errorMessage: null as string | null
+});
+
+// Authentication methods
+async function checkOktaSession() {
+  if (!process.client || !okta) {
+    authState.errorMessage = 'Okta is not available.';
+    return;
+  }
+  
+  try {
+    console.log('[App.vue] Checking Okta session status...');
+    
+    // Check if we have a fresh login success marker
+    const loginSuccess = sessionStorage.getItem('okta_login_success');
+    if (loginSuccess) {
+      console.log('[App.vue] Found login success marker from callback');
+      sessionStorage.removeItem('okta_login_success');
+    }
+    
+    // First try to see if we're already authenticated
+    try {
+      const authState = await okta.authStateManager.getAuthState();
+      console.log('[App.vue] Current auth state:', authState ? 'available' : 'not available');
+      if (authState && authState.isAuthenticated) {
+        console.log('[App.vue] User is already authenticated according to authStateManager');
+      }
+    } catch (authStateError) {
+      console.warn('[App.vue] Error getting auth state:', authStateError);
+    }
+    
+    // Try to get tokens from storage
+    const idToken = await okta.tokenManager.get('idToken');
+    const accessToken = await okta.tokenManager.get('accessToken');
+    
+    console.log('[App.vue] ID token present:', !!idToken);
+    console.log('[App.vue] Access token present:', !!accessToken);
+    
+    if (idToken && typeof idToken === 'object' && 'claims' in idToken) {
+      authState.isAuthenticated = true;
+      authState.user = idToken.claims;
+      authState.errorMessage = null;
+      console.log('[App.vue] Authentication successful via ID token');
+    } else if (accessToken && typeof accessToken === 'object' && 'claims' in accessToken) {
+      authState.isAuthenticated = true;
+      authState.user = accessToken.claims;
+      authState.errorMessage = null;
+      console.log('[App.vue] Authentication successful via access token');
+    } else {
+      console.log('[App.vue] No valid tokens found in token manager');
+      authState.isAuthenticated = false;
+      authState.user = null;
+    }
+  } catch (err: any) {
+    console.error('[App.vue] Token error:', err);
+    authState.isAuthenticated = false;
+    authState.user = null;
+    authState.errorMessage = 'Token validation error: ' + err.message;
+  }
+}
+
+async function loginWithOkta() {
+  if (!process.client || !okta) {
+    authState.errorMessage = 'Cannot login: Okta is not available.';
+    return;
+  }
+  
+  try {
+    console.log('[App.vue] Starting login process with Okta redirect');
+    console.log('[App.vue] Current URL:', window.location.href);
+    console.log('[App.vue] Redirect URI configured:', window.location.origin + '/login/callback');
+    
+    // Clear any existing tokens before starting a new login flow
+    // But DO NOT clear PKCE state as this can cause issues with code_verifier
+    await okta.tokenManager.clear();
+    
+    // Generate a unique state parameter to avoid collisions
+    const stateValue = 'sf-' + Date.now() + '-' + Math.random().toString(36).substring(2, 10);
+    
+    // Store the timestamp of this login attempt to help with debugging and cleanup
+    try {
+      localStorage.setItem('signfile_last_login_attempt', Date.now().toString());
+    } catch (storageErr) {
+      console.warn('[App.vue] Could not store login timestamp:', storageErr);
+    }
+    
+    // Start the redirect flow with explicit options
+    console.log('[App.vue] Starting auth flow with state:', stateValue);
+    
+    // Log all current storage keys for debugging
+    console.log('[App.vue] Storage keys before redirect:');
+    try {
+      const storageKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) storageKeys.push(key);
+      }
+      console.log(storageKeys);
+    } catch (e) {
+      console.warn('[App.vue] Error listing storage keys:', e);
+    }
+    
+    // Check if user is already authenticated - if so, no need to redirect
+    const currentAuthState = await okta.authStateManager.getAuthState();
+    if (currentAuthState && currentAuthState.isAuthenticated) {
+      console.log('[App.vue] User is already authenticated, refreshing tokens');
+      
+      try {
+        // If already authenticated, try to refresh the tokens instead of redirect
+        await okta.token.getWithoutPrompt({
+          responseType: ['code'], // Use 'code' for Authorization Code flow
+          pkce: true, // Use PKCE
+          scopes: ['openid', 'profile', 'email']
+        });
+        
+        // Update our auth state
+        await checkOktaSession();
+        return;
+      } catch (refreshErr) {
+        console.warn('[App.vue] Token refresh failed, falling back to redirect:', refreshErr);
+      }
+    }
+    
+    // For users who are not authenticated, use the redirect flow
+    console.log('[App.vue] User is not authenticated, starting redirect flow');
+    await okta.signInWithRedirect({
+      // The redirect is managed internally by the SDK
+      originalUri: window.location.origin
+    });
+  } catch (err: any) {
+    // Provide detailed error message and store for debugging
+    authState.errorMessage = 'Login failed: ' + err.message;
+    console.error('[App.vue] Login error:', err);
+    
+    // Store the error for debugging purposes
+    try {
+      localStorage.setItem('signfile_last_login_error', JSON.stringify({
+        time: Date.now(),
+        message: err.message,
+        name: err.name
+      }));
+    } catch (storageErr) {
+      console.warn('[App.vue] Could not store error details:', storageErr);
+    }
+  }
+}
+
+async function logout() {
+  if (!process.client || !okta) {
+    authState.errorMessage = 'Logout failed: Okta instance missing.';
+    return;
+  }
+  
+  try {
+    await okta.signOut();
+    authState.isAuthenticated = false;
+    authState.user = null;
+    authState.errorMessage = null;
+  } catch (err: any) {
+    authState.errorMessage = 'Logout error: ' + err.message;
+    console.error('[App.vue] logout error:', err);
+  }
+}
+
+onMounted(async () => {
+  if (!process.client || !okta) return;
+  
+  try {
+    // Check if we've been redirected from the callback page with a request to initiate login
+    const initiateLogin = sessionStorage.getItem('login_redirect_from_callback');
+    if (initiateLogin) {
+      console.log('[App.vue] Detected redirect from callback page, initiating login');
+      sessionStorage.removeItem('login_redirect_from_callback');
+      // Short delay to ensure the page is fully loaded before starting login
+      setTimeout(() => loginWithOkta(), 500);
+      return;
+    }
+    
+    // Check if we're on the main page with a code parameter (which shouldn't happen)
+    if (window.location.search.includes('code=') && window.location.pathname !== '/login/callback') {
+      console.log('[App.vue] Authorization code detected on main page, handling redirect');
+      try {
+        await okta.token.parseFromUrl();
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (parseErr) {
+        console.error('[App.vue] Error parsing URL on main page:', parseErr);
+      }
+    }
+    
+    // Always check session status on page load
+    await checkOktaSession();
+  } catch (err: any) {
+    console.error('[App.vue] Okta session check error:', err);
+  }
+});
+
 // Check if we're in development mode
 const isDev = computed(() => process.env.NODE_ENV === 'development');
 
@@ -66,7 +287,7 @@ useHead({
   ],
   script: [
     // Prevent Flash Of Unstyled Content (FOUC)
-    { children: `
+    { innerHTML: `
       (function() {
         document.documentElement.classList.add('js-loaded');
         
@@ -101,7 +322,7 @@ useHead({
   ],
   // Add CSS variables for consistent layout
   style: [
-    { children: `
+    { innerHTML: `
       :root {
         --content-max-width: 1024px;
         --content-min-height: 700px;
@@ -111,7 +332,7 @@ useHead({
         --card-radius: 1rem;
         --transition-speed: 200ms;
       }
-    `, type: 'text/css' }
+    ` }
   ]
 })
 </script>

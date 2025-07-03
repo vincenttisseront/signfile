@@ -532,6 +532,16 @@ async function handleSubmit() {
       triggerDownload(blob, filename)
       logWithTimestamp('Signed file downloaded.')
 
+      // Reset the script file input after successful signing
+      // This prevents the ERR_UPLOAD_FILE_CHANGED error when signing multiple files
+      scriptFile.value = null
+      
+      // Reset the file input element
+      const scriptFileInput = document.getElementById('scriptFile');
+      if (scriptFileInput) {
+        scriptFileInput.value = '';
+      }
+      
       if (passwordRequired.value) {
         passwordEntered.value = true
         passwordStatus.value = 'accepted'
@@ -576,9 +586,24 @@ function triggerDownload(blob, filename) {
 }
 
 function closeDownloadPopup() {
-  showDownloadPopup.value = false
-  downloadBlob.value = null
-  downloadFilename.value = ''
+  showDownloadPopup.value = false;
+  downloadBlob.value = null;
+  downloadFilename.value = '';
+  
+  // Add success message to indicate the file was signed successfully
+  signResult.value = {
+    success: true,
+    message: 'Your file was signed successfully. You can now sign another file.'
+  };
+  
+  // Clear the script file input to make it clear the user needs to select another file
+  scriptFile.value = null;
+  
+  // Reset the file input element
+  const scriptFileInput = document.getElementById('scriptFile');
+  if (scriptFileInput) {
+    scriptFileInput.value = '';
+  }
 }
 
 function confirmUnloadCert() {
