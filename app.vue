@@ -21,8 +21,13 @@
             <span v-if="!authState.isAuthenticated" class="text-xs bg-energy/20 text-energy px-1 py-0.5 rounded ml-1">Auth Required</span>
           </NuxtLink>
         </div>
+        <!-- Version Info -->
+        <div class="text-center text-xs text-modernity-50 mt-auto border-t border-security-10 pt-3">
+          <p>{{ appVersion.formattedVersion() }}</p>
+        </div>
+        
         <!-- Authentication State -->
-        <div class="mt-auto border-t border-security-10 pt-3 pb-2">
+        <div class="border-t border-security-10 pt-3 pb-2 mt-2">
           <div v-if="!authState.isAuthenticated" class="text-center">
             <p class="text-xs mb-2 text-modernity-50">Authentication required for admin access</p>
             <button type="button" @click="loginWithOkta" class="btn btn-primary btn-sm w-full">
@@ -62,7 +67,11 @@ import { computed, ref, reactive, onMounted } from 'vue';
 import LayoutDebug from '~/components/LayoutDebug.vue';
 import { useLayout } from '~/composables/useLayout';
 import { useOkta } from '~/composables/useOkta';
+import { useAppVersion } from '~/composables/useAppVersion';
 import { OktaAuth } from '@okta/okta-auth-js';
+
+// Get the app version
+const appVersion = useAppVersion();
 
 // Use our layout composable to get responsive behavior
 const { isSmallScreen } = useLayout();
