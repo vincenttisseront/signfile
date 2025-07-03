@@ -1,56 +1,103 @@
 <template>
-  <div>
-    <h1 class="text-2xl font-bold mb-4">Admin Panel</h1>
+  <div class="layout-form text-modernity relative">
+    <h1 class="text-2xl font-bold mb-4 text-security">Admin Panel</h1>
 
     <!-- ⚠ Error Message Display -->
     <div v-if="errorMessage" class="mb-4 p-3 rounded bg-energy/10 text-energy border border-energy">
       ⚠ {{ errorMessage }}
     </div>
 
-    <div v-if="!isAuthenticated">
-      <button type="button" @click="loginWithOkta" class="px-3 py-1 rounded bg-security text-care hover:bg-currency hover:text-modernity">Login with Okta</button>
+    <!-- Authentication State -->
+    <div class="min-h-[40px]">
+      <div v-if="!isAuthenticated">        <button type="button" @click="loginWithOkta"
+          class="btn btn-primary btn-md">
+          Login with Okta
+        </button>
+      </div>
+      <div v-else class="flex items-center justify-between mb-6">
+        <h2 class="text-lg font-semibold text-currency">
+          👋 Welcome, <span class="underline">{{ user?.name || user?.email }}</span>
+        </h2>        <button @click="logout"
+          class="btn btn-secondary btn-sm ml-2">
+          Logout
+        </button>
+      </div>
     </div>
-    <div v-else>
-      <p class="mb-4">Welcome, {{ user?.name || user?.email }}! <button @click="logout" class="text-sm px-2 py-1 rounded bg-currency hover:bg-energy ml-2 text-modernity">Logout</button></p>
-      <div class="mb-8">
-        <h2 class="text-xl font-semibold mb-2 text-security">Certificate Management</h2>
-        <div>
-          <button @click="fetchCerts" class="px-3 py-1 rounded bg-currency hover:bg-energy text-modernity mb-2">Refresh Certificates</button>
-          <ul>
-            <li v-for="cert in certs" :key="cert.name" class="mb-1 flex items-center">
-              <span class="font-mono text-modernity">{{ cert.name }}</span>
-              <button @click="deleteCert(cert.name)" class="text-xs px-2 py-0.5 rounded bg-energy hover:bg-security ml-2 text-care">Delete</button>
-            </li>
-          </ul>
-        </div>
-      </div>
-      <div class="mb-8">
-        <h2 class="text-xl font-semibold mb-2 text-security">System &amp; Version Info</h2>
-        <div v-if="adminVersions">
-          <div class="mb-2"><span class="font-semibold text-currency">jsign version:</span> <span class="ml-2">{{ adminVersions.versions.jsign.current }}</span></div>
-          <div class="mb-2"><span class="font-semibold text-currency">OpenSSL version:</span> <span class="ml-2">{{ adminVersions.versions.openssl.current }}</span> <span class="text-xs text-gray-500">(latest: {{ adminVersions.versions.openssl.latest }})</span></div>
-          <div class="mb-2"><span class="font-semibold text-currency">OpenJDK version:</span> <span class="ml-2">{{ adminVersions.versions.openjdk.current }}</span></div>
-          <div class="mb-2"><span class="font-semibold text-currency">Base image:</span> <span class="ml-2">{{ adminVersions.baseImage }}</span></div>
-          <div class="mb-2"><span class="font-semibold text-currency">NPM Packages:</span></div>
-          <ul class="ml-4 mt-2">
-            <li v-for="pkg in sortedAdminPackages" :key="pkg.name" :class="pkg.outdated ? 'bg-energy/10 text-energy rounded px-2 py-1 mb-1' : 'mb-1'">
-              <span class="font-mono">{{ pkg.name }}</span>: {{ pkg.current }} <span class="text-gray-500">(latest: {{ pkg.latest }})</span>
-              <span v-if="pkg.outdated" class="text-energy"> ⚠</span>
-            </li>
-          </ul>
-        </div>
-        <div v-else class="text-gray-400">Loading version info...</div>
-      </div>
-      <div>
-        <h2 class="text-xl font-semibold mb-2 text-security">NPM Package Management</h2>
-        <button @click="fetchPackages" class="px-3 py-1 rounded bg-currency hover:bg-energy text-modernity mb-2">Refresh Packages</button>
-        <ul>
-          <li v-for="pkg in npmPackages" :key="pkg.name" class="mb-1 flex items-center">
-            <span class="font-mono text-modernity">{{ pkg.name }}</span>: {{ pkg.current }} <span class="text-gray-500">(latest: {{ pkg.latest }})</span>
-            <button v-if="pkg.outdated" @click="updatePackage(pkg.name)" class="text-xs px-2 py-0.5 rounded bg-energy text-care hover:bg-security ml-2">Update</button>
+
+    <div v-if="isAuthenticated" class="transition-opacity duration-300 space-y-8">
+      
+      <!-- Certificate Management -->
+      <div class="p-4 rounded-lg border border-security/20 bg-care shadow-sm">
+        <h2 class="text-xl font-semibold mb-4 text-security border-b border-security/30 pb-2">Certificate Management</h2>        <button @click="fetchCerts"
+          class="btn btn-secondary btn-md mb-4">
+          Refresh Certificates
+        </button>
+        <ul class="space-y-2">
+          <li v-for="cert in certs" :key="cert.name"
+            class="p-2 flex items-center justify-between border-b border-security/10">
+            <span class="font-mono text-modernity">{{ cert.name }}</span>            <button @click="deleteCert(cert.name)"
+              class="btn btn-danger btn-sm">
+              Delete
+            </button>
           </li>
         </ul>
       </div>
+
+      <!-- System & Version Info -->
+      <div class="p-4 rounded-lg border border-security/20 bg-care shadow-sm">
+        <h2 class="text-xl font-semibold mb-4 text-security border-b border-security/30 pb-2">System &amp; Version Info</h2>
+        <div v-if="adminVersions">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="p-2 rounded bg-security/5"><span class="font-semibold text-currency">jsign version:</span> <span
+                class="ml-2">{{ adminVersions.versions.jsign.current }}</span></div>
+            <div class="p-2 rounded bg-security/5"><span class="font-semibold text-currency">OpenSSL version:</span>
+              <span class="ml-2">{{ adminVersions.versions.openssl.current }}</span>
+              <span class="text-xs text-security">(latest: {{ adminVersions.versions.openssl.latest }})</span>
+            </div>
+            <div class="p-2 rounded bg-security/5"><span class="font-semibold text-currency">OpenJDK version:</span>
+              <span class="ml-2">{{ adminVersions.versions.openjdk.current }}</span>
+            </div>
+            <div class="p-2 rounded bg-security/5"><span class="font-semibold text-currency">Base image:</span> <span
+                class="ml-2">{{ adminVersions.baseImage }}</span></div>
+          </div>
+        </div>
+        <div v-else class="text-security/50 italic">Loading version info...</div>
+      </div>
+
+      <!-- NPM Package Management -->
+      <div class="p-4 rounded-lg border border-security/20 bg-care shadow-sm">
+        <h2 class="text-xl font-semibold mb-4 text-security border-b border-security/30 pb-2">NPM Package Management</h2>
+        <button @click="fetchPackages"
+          class="bg-currency text-modernity hover:bg-security hover:text-care transition-colors duration-200 rounded-lg px-4 py-2 font-medium mb-4">
+          Refresh Packages
+        </button>
+        <ul class="space-y-2 min-h-[50px]">
+          <li v-for="pkg in npmPackages" :key="pkg.name"
+            class="p-2 flex items-center justify-between bg-security/5 rounded-lg">
+            <div>
+              <span class="font-mono text-modernity font-medium">{{ pkg.name }}</span>: {{ pkg.current }}
+              <span class="text-security/70">(latest: {{ pkg.latest }})</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span v-if="!pkg.outdated" class="text-green-600 text-lg">✅</span>
+              <button v-else @click="updatePackage(pkg.name)"
+                class="bg-energy text-care hover:bg-energy/80 transition-colors duration-200 rounded-lg px-3 py-1 text-sm">
+                Update
+              </button>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Loading overlay -->
+      <div v-if="isAuthenticated && loading"
+        class="absolute inset-0 bg-care/70 flex items-center justify-center rounded-xl z-10 backdrop-blur-sm">
+        <div class="flex flex-col items-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-security"></div>
+          <p class="text-security mt-4 font-medium animate-pulse">Loading data...</p>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
@@ -66,6 +113,7 @@ const user = ref<any>(null)
 const errorMessage = ref<string | null>(null)
 const certs = ref<{ name: string }[]>([])
 const npmPackages = ref<{ name: string; current: string; latest: string; outdated: boolean }[]>([])
+const loading = ref(false)
 const adminVersions = ref<any>(null)
 const sortedAdminPackages = computed(() => {
   if (!adminVersions.value || !Array.isArray(adminVersions.value.npmPackages)) return []

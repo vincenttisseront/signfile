@@ -36,7 +36,18 @@ export default defineNuxtPlugin((nuxtApp) => {
 
   try {
     const config = useRuntimeConfig()
-    console.log('[okta.client.ts] Config:', config.public.oktaIssuer, config.public.oktaClientId)
+    console.log('[okta.client.ts] Loaded issuer:', config.public.oktaIssuer)
+    console.log('[okta.client.ts] Loaded clientId:', config.public.oktaClientId)
+
+    if (!config.public.oktaIssuer || !config.public.oktaClientId) {
+      console.error('[okta.client.ts] ❌ Missing Okta config – aborting initialization')
+      return {
+        provide: {
+          okta: null,
+          oktaAuth: null
+        }
+      }
+    }
 
     const oktaAuth = new OktaAuth({
       issuer: String(config.public.oktaIssuer),

@@ -1,6 +1,6 @@
 <template>
-  <div class="bg-care rounded-xl p-6 text-modernity">
-    <h2 class="text-2xl font-bold mb-2 text-security">Script Signer &amp; Verifier</h2>
+  <div class="layout-form text-modernity">
+    <h2 class="text-2xl font-bold mb-2 text-security h-[32px]">Script Signer &amp; Verifier</h2>
     <div class="mb-2 text-sm text-currency font-semibold">Version: 1.0.5</div>
     <div class="mb-4">
       <span class="font-semibold text-currency">Developers:</span>
@@ -33,15 +33,17 @@
       </ul>
     </div>
     <div class="mb-4">
-      <span class="font-semibold text-currency">What's new:</span>
-      <ul class="ml-4 mt-1 list-disc text-sm">
-        <li><span class="font-semibold">1.0.5:</span> Okta authentication plugin: improved SSR/CSR safety, global Okta instance..</li>
-        <li><span class="font-semibold">1.0.4:</span> Fixed SSR/CSR tab state and hydration issues, About/Sign Script tabs now render correctly after refresh and never mix content.</li>
-        <li><span class="font-semibold">1.0.3:</span> Improved NPM package version detection: now reads the actual installed version, added loading/error indicators for version checks and improved UI for outdated packages.</li>
-        <li><span class="font-semibold">1.0.2:</span> Show all NPM package versions and update status dynamically from package.json.</li>
-        <li><span class="font-semibold">1.0.1:</span> Improved certificate info display, fixed password popup logic, removed unused popup, and improved file cleanup.</li>
-        <li><span class="font-semibold">1.0.0:</span> Initial release: sign scripts, manage certificates, PowerShell and OpenSSL support.</li>
-      </ul>
+      <span class="font-semibold text-currency">Version Information:</span>
+      <div class="ml-4 mt-1 space-y-2">
+        <ul class="list-disc pl-4 space-y-1 text-sm">
+          <li><span class="font-semibold">1.0.5:</span> Okta authentication plugin: improved SSR/CSR safety, global Okta instance, and window.__oktaAuth fallback for debugging. Refactored plugin initialization and error handling.</li>
+          <li><span class="font-semibold">1.0.4:</span> Added stored certificate management, certificate password validation, and user feedback improvements.</li>
+          <li><span class="font-semibold">1.0.3:</span> Fixed compatibility issues with different certificate types and added better error handling.</li>
+          <li><span class="font-semibold">1.0.2:</span> Improved security features and certificate validation.</li>
+          <li><span class="font-semibold">1.0.1:</span> Added support for more script types and improved UI.</li>
+          <li><span class="font-semibold">1.0.0:</span> Initial release with basic signing and verification features.</li>
+        </ul>
+      </div>
     </div>
     <div class="mt-6">
       <span class="font-semibold text-currency">Source &amp; License:</span> Private / Internal use
