@@ -1,14 +1,59 @@
 <template>
-  <div class="bg-care text-modernity min-h-screen">
-    <NuxtRouteAnnouncer />
-    <NuxtPage />
-    <LayoutDebug v-if="isDev" />
+  <div class="app-container text-modernity">
+    <!-- Sidebar Menu -->
+    <aside class="sidebar" :class="{ 'open': isSidebarOpen }">
+      <div class="sidebar-logo">
+        <span class="text-xl font-bold text-security">SignFile</span>
+      </div>
+      <nav class="flex flex-col h-[calc(100%-70px)]">
+        <div class="flex-grow">
+          <NuxtLink to="/" class="menu-item" active-class="active">
+            <span class="menu-icon">📝</span>
+            <span>Sign File</span>
+          </NuxtLink>
+          <NuxtLink to="/about" class="menu-item" active-class="active">
+            <span class="menu-icon">ℹ️</span>
+            <span>About</span>
+          </NuxtLink>
+          <NuxtLink to="/admin" class="menu-item" active-class="active">
+            <span class="menu-icon">⚙️</span>
+            <span>Admin</span>
+          </NuxtLink>
+        </div>
+        <div class="mt-auto pt-4 text-xs text-center text-modernity-50 border-t border-security-10">
+          &copy; {{ new Date().getFullYear() }} SignFile<br>
+          iBanFirst - All Rights Reserved
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <button v-if="isSmallScreen" class="menu-toggle" @click="toggleSidebar">
+        ☰
+      </button>
+      <NuxtRouteAnnouncer />
+      <NuxtPage />
+      <LayoutDebug v-if="isDev" />
+    </main>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import LayoutDebug from '~/components/LayoutDebug.vue';
+import { useLayout } from '~/composables/useLayout';
+
+// Use our layout composable to get responsive behavior
+const { isSmallScreen } = useLayout();
+
+// Sidebar toggle state
+const isSidebarOpen = ref(false);
+
+// Toggle sidebar function for mobile view
+const toggleSidebar = () => {
+  isSidebarOpen.value = !isSidebarOpen.value;
+};
 
 // Check if we're in development mode
 const isDev = computed(() => process.env.NODE_ENV === 'development');

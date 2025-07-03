@@ -3,7 +3,7 @@
     <!-- Use display CSS instead of v-if to prevent layout shifts during hydration -->
     <div 
       :class="{'opacity-100': hydratedOrSSR, 'opacity-0': !hydratedOrSSR}"
-      class="layout-form p-6 md:p-8 space-y-8 transition-opacity duration-300"
+      class="max-w-3xl mx-auto space-y-8 transition-opacity duration-300"
     >
       <!-- Certificate upload step with consistent height -->
       <div v-if="!certFile || (passwordRequired && !passwordEntered)" class="min-h-[150px]">

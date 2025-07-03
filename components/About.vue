@@ -1,5 +1,5 @@
 <template>
-  <div class="layout-form text-modernity">
+  <div class="max-w-3xl mx-auto text-modernity">
     <h2 class="text-2xl font-bold mb-2 text-security h-[32px]">Script Signer &amp; Verifier</h2>
     <div class="mb-2 text-sm text-currency font-semibold">Version: 1.0.5</div>
     <div class="mb-4">

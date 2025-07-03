@@ -1,7 +1,5 @@
 <template>
-  <div class="layout-form text-modernity relative">
-    <h1 class="text-2xl font-bold mb-4 text-security">Admin Panel</h1>
-
+  <div class="text-modernity relative">
     <!-- ⚠ Error Message Display -->
     <div v-if="errorMessage" class="mb-4 p-3 rounded bg-energy/10 text-energy border border-energy">
       ⚠ {{ errorMessage }}

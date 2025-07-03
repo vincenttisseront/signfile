@@ -1,5 +1,5 @@
 <template>
-  <div class="layout-form space-y-6">
+  <div class="max-w-3xl mx-auto space-y-6">
     <h2 class="text-xl font-semibold text-security border-b border-security/30 pb-2 mb-4">Inspect File Signature</h2>
     <form @submit.prevent class="space-y-4">
       <div>        <label class="form-label" for="script">Upload Script File</label>
