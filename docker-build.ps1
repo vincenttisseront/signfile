@@ -29,6 +29,7 @@ docker run -d `
   -e AUTHENTICATED_USERS_FILE=/app/auth-data/authenticated_users.json `
   -e CERTS_DIR=/app/secure-storage/certs `
   -e ADMIN_PASSWORD_FILE=/app/secure-storage/admin_password.txt `
+  -e LOG_LEVEL=debug `
   "$IMAGE_NAME:$IMAGE_TAG"
 
 Write-Host "⏳ Waiting for container readiness..." -ForegroundColor Cyan

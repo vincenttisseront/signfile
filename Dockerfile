@@ -56,39 +56,77 @@ COPY --chown=signfile:signfile --from=deps /app/.env ./.env
 COPY --chown=signfile:signfile --from=jsign /usr/local/bin/jsign /usr/local/bin/
 COPY --chown=signfile:signfile --from=jsign /usr/local/bin/jsign.jar /usr/local/bin/
 
-# Create writable directories
+# Create writable directories and ensure proper ownership
 RUN mkdir -p /app/secure-storage/certs /app/temp /app/data /app/auth-data /app/secure-storage && \
-    chmod 777 /app/secure-storage/certs /app/temp /app/data /app/auth-data /app/secure-storage
+    chmod -R 777 /app/secure-storage /app/temp /app/data /app/auth-data && \
+    chown -R signfile:signfile /app/secure-storage /app/temp /app/data /app/auth-data
 
 # Startup script
 RUN echo '#!/bin/sh\n\
-mkdir -p "$CERTS_DIR" "$TEMP_DIR" "$DATA_DIR" /app/auth-data "$SECURE_STORAGE_DIR" 2>/dev/null || true\n\
-chmod -R 777 "$CERTS_DIR" "$TEMP_DIR" "$DATA_DIR" /app/auth-data "$SECURE_STORAGE_DIR" 2>/dev/null || true\n\
+echo "[STARTUP] SignFile container starting up..."\n\
+echo "[STARTUP] Creating required directories..."\n\
+mkdir -p "$CERTS_DIR" "$TEMP_DIR" "$DATA_DIR" /app/auth-data "$SECURE_STORAGE_DIR" 2>/dev/null || echo "[STARTUP] Warning: Error creating directories"\n\
+chmod -R 777 "$CERTS_DIR" "$TEMP_DIR" "$DATA_DIR" /app/auth-data "$SECURE_STORAGE_DIR" 2>/dev/null || echo "[STARTUP] Warning: Error setting permissions"\n\
 \n\
 # Generate admin password if it does not exist\n\
 if [ ! -f "$ADMIN_PASSWORD_FILE" ]; then\n\
+  echo "[STARTUP] Admin password file not found, generating new password..."\n\
   # Generate random password (16 chars of alphanumeric)\n\
   ADMIN_PWD=$(cat /dev/urandom | tr -dc "a-zA-Z0-9" | fold -w 16 | head -n 1)\n\
   echo "$ADMIN_PWD" > "$ADMIN_PASSWORD_FILE"\n\
-  echo "Generated new admin password: $ADMIN_PWD"\n\
+  echo "[STARTUP] Generated new admin password: $ADMIN_PWD"\n\
+  chmod 600 "$ADMIN_PASSWORD_FILE" 2>/dev/null || echo "[STARTUP] Warning: Could not set admin password file permissions"\n\
+else\n\
+  echo "[STARTUP] Using existing admin password file"\n\
 fi\n\
 \n\
 # Initialize empty admin users file if it does not exist\n\
 if [ ! -f "$ADMIN_USERS_FILE" ]; then\n\
+  echo "[STARTUP] Creating admin users file..."\n\
   echo "[]" > "$ADMIN_USERS_FILE"\n\
-  echo "Initialized empty admin users file"\n\
+  echo "[STARTUP] Initialized empty admin users file"\n\
+else\n\
+  echo "[STARTUP] Using existing admin users file"\n\
 fi\n\
 \n\
 # Initialize empty authenticated users file if it does not exist\n\
 if [ ! -f "$AUTHENTICATED_USERS_FILE" ]; then\n\
+  echo "[STARTUP] Creating authenticated users file..."\n\
   # Ensure the directory exists\n\
-  mkdir -p "$(dirname "$AUTHENTICATED_USERS_FILE")" 2>/dev/null || true\n\
-  chmod 777 "$(dirname "$AUTHENTICATED_USERS_FILE")" 2>/dev/null || true\n\
+  mkdir -p "$(dirname "$AUTHENTICATED_USERS_FILE")" 2>/dev/null || echo "[STARTUP] Warning: Error creating auth directory"\n\
+  chmod 777 "$(dirname "$AUTHENTICATED_USERS_FILE")" 2>/dev/null || echo "[STARTUP] Warning: Error setting auth directory permissions"\n\
   echo "[]" > "$AUTHENTICATED_USERS_FILE"\n\
-  echo "Initialized empty authenticated users file at $AUTHENTICATED_USERS_FILE"\n\
-  chmod 666 "$AUTHENTICATED_USERS_FILE" 2>/dev/null || true\n\
+  echo "[STARTUP] Initialized empty authenticated users file at $AUTHENTICATED_USERS_FILE"\n\
+  chmod 666 "$AUTHENTICATED_USERS_FILE" 2>/dev/null || echo "[STARTUP] Warning: Error setting auth file permissions"\n\
+else\n\
+  echo "[STARTUP] Using existing authenticated users file"\n\
 fi\n\
 \n\
+# Check if jsign is available\n\
+if command -v jsign >/dev/null 2>&1; then\n\
+  echo "[STARTUP] JSign found at $(which jsign)"\n\
+else\n\
+  echo "[STARTUP] WARNING: JSign not found in PATH!"\n\
+fi\n\
+\n\
+echo "[STARTUP] Environment: NODE_ENV=$NODE_ENV"\n\
+echo "[STARTUP] Log level: $LOG_LEVEL"\n\
+\n\
+# Final verification of critical directories\n\
+echo "[STARTUP] Verifying required directories..."\n\
+for dir in "$CERTS_DIR" "$TEMP_DIR" "$DATA_DIR" "$SECURE_STORAGE_DIR" "/app/auth-data"; do\n\
+  if [ -d "$dir" ]; then\n\
+    echo "[STARTUP] ✅ Directory exists: $dir"\n\
+    ls -la "$dir" | head -n 5\n\
+  else\n\
+    echo "[STARTUP] ❌ Missing directory: $dir"\n\
+    # Try to create it again as a last resort\n\
+    mkdir -p "$dir" 2>/dev/null && echo "[STARTUP] Created missing directory"\n\
+    chmod -R 777 "$dir" 2>/dev/null\n\
+  fi\n\
+done\n\
+\n\
+echo "[STARTUP] Starting Nuxt server..."\n\
 exec node .output/server/index.mjs\n' > /app/start.sh && \
     chmod +x /app/start.sh
 
@@ -97,6 +135,7 @@ ENV NODE_ENV=production
 ENV TZ=Europe/Paris
 ENV NITRO_HOST=0.0.0.0
 ENV JSIGN_VERSION=7.1
+ENV LOG_LEVEL=debug
 ENV CERTS_DIR=/app/secure-storage/certs
 ENV TEMP_DIR=/app/temp
 ENV DATA_DIR=/app/data
@@ -109,7 +148,16 @@ USER signfile
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -q --spider http://localhost:3000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget -q -O - http://localhost:3000/api/health > /tmp/health.json && \
+    if grep -q '"status":"healthy"' /tmp/health.json; then \
+      echo "Health check OK"; \
+      exit 0; \
+    else \
+      echo "Container unhealthy. Health check response:"; \
+      cat /tmp/health.json; \
+      echo "Check container logs for details"; \
+      exit 1; \
+    fi
 
 CMD ["/app/start.sh"]
