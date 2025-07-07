@@ -44,62 +44,41 @@ export function logSystemInfo() {
       logger.info('startup', `  ${key}: ${value || 'undefined'}`)
     }
     
-    // Log directory structure
+    // Log directory structure - use try/catch for each directory separately for maximum robustness
+    logger.info('startup', '======================================================')
+    logger.info('startup', 'Directory Structure:')
+    
+    // First, log the configuration without file system access
+    logger.info('startup', `  CERTS_DIR: ${process.env.CERTS_DIR || '/app/secure-storage/certs'}`)
+    logger.info('startup', `  TEMP_DIR: ${process.env.TEMP_DIR || '/app/temp'}`)
+    logger.info('startup', `  DATA_DIR: ${process.env.DATA_DIR || '/app/data'}`)
+    logger.info('startup', `  SECURE_STORAGE_DIR: ${process.env.SECURE_STORAGE_DIR || '/app/secure-storage'}`)
+    logger.info('startup', `  Working directory: ${process.cwd()}`)
+    
+    // Also write to a file that will be available even if the container crashes
     try {
-      logger.info('startup', '======================================================')
-      logger.info('startup', 'Directory Structure:')
+      const fs = require('fs')
+      const debugDir = '/tmp/startup-debug'
+      const logFile = `${debugDir}/node-startup.log`
       
-      // Check important directories based on Dockerfile environment variables
-      const dirs = [
-        process.cwd(),
-        '/app',
-        '/app/secure-storage',
-        '/app/secure-storage/certs',
-        '/app/temp',
-        '/app/data',
-        '/app/auth-data',
-        process.env.CERTS_DIR || '/app/secure-storage/certs',
-        process.env.TEMP_DIR || '/app/temp',
-        process.env.DATA_DIR || '/app/data',
-        process.env.SECURE_STORAGE_DIR || '/app/secure-storage'
-      ]
+      // Create directory if it doesn't exist
+      try { fs.mkdirSync(debugDir, { recursive: true }) } catch (e) {}
       
-      for (const dir of [...new Set(dirs)]) {
-        try {
-          const exists = fs.existsSync(dir)
-          
-          if (exists) {
-            const stats = fs.statSync(dir)
-            const isDir = stats.isDirectory()
-            const files = isDir ? fs.readdirSync(dir).length : 0
-            logger.info('startup', `  ${dir}: ${exists ? '✅' : '❌'} ${isDir ? `(${files} files)` : '(not a directory)'}`)
-            
-            // Log first few files to help with debugging
-            if (isDir && files > 0) {
-              const fileList = fs.readdirSync(dir).slice(0, 5)
-              fileList.forEach((file: string) => {
-                try {
-                  const filePath: string = path.join(dir, file)
-                  const fileStats: import('fs').Stats = fs.statSync(filePath)
-                  logger.info('startup', `    - ${file}: ${fileStats.isDirectory() ? 'directory' : `file (${fileStats.size} bytes)`}`)
-                } catch (fileErr: unknown) {
-                  logger.warn('startup', `    - ${file}: error reading stats`)
-                }
-              })
-              
-              if (files > 5) {
-                logger.info('startup', `    - ... and ${files - 5} more files`)
-              }
-            }
-          } else {
-            logger.warn('startup', `  ${dir}: ❌ does not exist`)
-          }
-        } catch (dirErr) {
-          logger.error('startup', `  Error checking directory ${dir}:`, dirErr)
-        }
-      }
+      // Log to file
+      const timestamp = new Date().toISOString()
+      const logContent = `
+${timestamp} - Node.js startup log
+Working directory: ${process.cwd()}
+CERTS_DIR: ${process.env.CERTS_DIR || '/app/secure-storage/certs'}
+TEMP_DIR: ${process.env.TEMP_DIR || '/app/temp'}
+DATA_DIR: ${process.env.DATA_DIR || '/app/data'}
+SECURE_STORAGE_DIR: ${process.env.SECURE_STORAGE_DIR || '/app/secure-storage'}
+NODE_ENV: ${process.env.NODE_ENV}
+LOG_LEVEL: ${process.env.LOG_LEVEL}
+`
+      fs.writeFileSync(logFile, logContent, { flag: 'a' })
     } catch (fsErr) {
-      logger.error('startup', 'Error checking filesystem:', fsErr)
+      // Silently ignore filesystem errors - we don't want logging to crash the app
     }
     
     logger.info('startup', '======================================================')
@@ -114,26 +93,32 @@ export function logSystemInfo() {
  */
 export function logHealthCheck() {
   try {
-    logger.debug('health', '======================================================')
-    logger.debug('health', 'Health Check')
-    logger.debug('health', '======================================================')
+    // Simple health check with minimal resource usage information
+    const memUsage = process.memoryUsage();
+    const healthMsg = `Health check: OK, uptime=${process.uptime().toFixed(0)}s, memory=${Math.round(memUsage.rss / 1024 / 1024)}MB`;
+    logger.debug('health', healthMsg);
     
-    // Log resource usage
-    const memoryUsage = process.memoryUsage()
-    logger.debug('health', `Memory: ${Math.round(memoryUsage.rss / (1024 * 1024))}MB RSS, ${Math.round(memoryUsage.heapUsed / (1024 * 1024))}MB Heap Used`)
-    logger.debug('health', `Uptime: ${Math.round(process.uptime())} seconds`)
-    
-    // Log resource availability
-    const freeMem = os.freemem()
-    const totalMem = os.totalmem()
-    const usedMem = totalMem - freeMem
-    const memoryUsagePercent = Math.round((usedMem / totalMem) * 100)
-    
-    logger.debug('health', `System Memory: ${memoryUsagePercent}% used (${Math.round(freeMem / (1024 * 1024))}MB free)`)
-    logger.debug('health', `Load Average: ${os.loadavg().map(load => load.toFixed(2)).join(', ')}`)
-    
-    logger.debug('health', '======================================================')
+    // Also write to the debug log file
+    try {
+      const fs = require('fs');
+      const debugDir = '/tmp/startup-debug';
+      const healthLogFile = `${debugDir}/health-checks.log`;
+      
+      // Create directory if it doesn't exist
+      try { fs.mkdirSync(debugDir, { recursive: true }); } catch (e) {}
+      
+      // Log to file with timestamp
+      const timestamp = new Date().toISOString();
+      fs.appendFileSync(healthLogFile, `${timestamp} - ${healthMsg}\n`);
+    } catch (fsErr) {
+      // Silently ignore filesystem errors - we don't want logging to crash the app
+    }
   } catch (err) {
-    logger.error('health', 'Error logging health information:', err)
+    // Even if this fails, don't let it crash the app
+    try {
+      logger.error('health', 'Error logging health information');
+    } catch (innerErr) {
+      // Completely silent fallback
+    }
   }
 }

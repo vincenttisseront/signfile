@@ -6,9 +6,10 @@ $ErrorActionPreference = "Stop"
 $IMAGE_NAME = "signfile"
 $IMAGE_TAG = "1.0.7"
 $CONTAINER_NAME = "competent_turing"
+$FULL_IMAGE_NAME = "${IMAGE_NAME}:${IMAGE_TAG}"
 
 Write-Host "🔨 Building SignFile Docker image..." -ForegroundColor Cyan
-docker build -t "$IMAGE_NAME:$IMAGE_TAG" .
+docker build -t $FULL_IMAGE_NAME .
 
 Write-Host "🧼 Stopping and removing existing container (if exists)..." -ForegroundColor Cyan
 docker stop $CONTAINER_NAME 2>$null
@@ -30,7 +31,7 @@ docker run -d `
   -e CERTS_DIR=/app/secure-storage/certs `
   -e ADMIN_PASSWORD_FILE=/app/secure-storage/admin_password.txt `
   -e LOG_LEVEL=debug `
-  "$IMAGE_NAME:$IMAGE_TAG"
+  $FULL_IMAGE_NAME
 
 Write-Host "⏳ Waiting for container readiness..." -ForegroundColor Cyan
 $MAX_ATTEMPTS = 30
@@ -44,18 +45,75 @@ while (-not $containerReady -and $attempt -lt $MAX_ATTEMPTS) {
     $containerRunning = docker ps --filter "name=$CONTAINER_NAME" --filter "status=running" --format "{{.Names}}" | Out-String
     if ($containerRunning -match $CONTAINER_NAME) {
         try {
-            $response = Invoke-WebRequest -Uri "http://localhost:3000" -UseBasicParsing -TimeoutSec 1
-            if ($response.StatusCode -eq 200) {
-                $containerReady = $true
+            # First, try the basic health endpoint
+            try {
+                $healthResponse = Invoke-WebRequest -Uri "http://localhost:3000/api/basic-health" -UseBasicParsing -TimeoutSec 2
+                if ($healthResponse.StatusCode -eq 200) {
+                    Write-Host "✅ Health check endpoint is responding" -ForegroundColor Green
+                    $containerReady = $true
+                }
+            } catch {
+                # If basic health check fails, try the regular health endpoint
+                try {
+                    $response = Invoke-WebRequest -Uri "http://localhost:3000/api/health" -UseBasicParsing -TimeoutSec 2
+                    if ($response.StatusCode -eq 200) {
+                        $containerReady = $true
+                        Write-Host "✅ Health endpoint is responding" -ForegroundColor Green
+                    }
+                } catch {
+                    Write-Host "❌ Health endpoints are not responding" -ForegroundColor Red
+                }
+            }
+            
+            if ($containerReady) {
                 Write-Host "✅ SignFile is now running at http://localhost:3000" -ForegroundColor Green
+            } else {
+                Write-Host "↻ Health checks not responding yet, retrying..."
+                Start-Sleep -Seconds 2
             }
         } catch {
             Write-Host "↻ Not ready yet, retrying..."
-            Start-Sleep -Seconds 1
+            Start-Sleep -Seconds 2
         }
     } else {
-        Write-Host "❌ Container failed to start. Logs:" -ForegroundColor Red
+        Write-Host "❌ Container failed to start or is not running. Logs:" -ForegroundColor Red
         docker logs $CONTAINER_NAME
+        
+        # Check if container exists but is unhealthy or exited
+        $containerStatus = docker ps -a --filter "name=$CONTAINER_NAME" --format "{{.Status}}" | Out-String
+        Write-Host "Container status: $containerStatus" -ForegroundColor Yellow
+        
+        # Try to get startup debug logs if they exist
+        Write-Host "Attempting to retrieve debug logs..." -ForegroundColor Yellow
+        
+        # Create a local directory to copy logs to
+        $debugDir = "debug-logs"
+        if (-not (Test-Path $debugDir)) {
+            New-Item -ItemType Directory -Path $debugDir | Out-Null
+        }
+        
+        # Try to copy logs from container to host for analysis
+        Write-Host "Copying logs to $debugDir folder..." -ForegroundColor Yellow
+        docker cp "${CONTAINER_NAME}:/tmp/startup-debug/." $debugDir/ 2>$null
+        
+        # Display logs if available
+        if (Test-Path "$debugDir/startup.log") {
+            Write-Host "--- Container startup log: ---" -ForegroundColor Yellow
+            Get-Content "$debugDir/startup.log" | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
+        }
+        
+        if (Test-Path "$debugDir/server.log") {
+            Write-Host "--- Node.js server log: ---" -ForegroundColor Yellow
+            Get-Content "$debugDir/server.log" | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
+        }
+        
+        if (Test-Path "$debugDir/node-startup.log") {
+            Write-Host "--- Node application startup log: ---" -ForegroundColor Yellow
+            Get-Content "$debugDir/node-startup.log" | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
+        }
+        
+        Write-Host "Diagnostic logs saved to ./$debugDir/ directory" -ForegroundColor Yellow
+        
         exit 1
     }
 }
@@ -75,7 +133,9 @@ Write-Host "`n📁 Verifying persistent data..." -ForegroundColor Cyan
 docker exec $CONTAINER_NAME mkdir -p /app/secure-storage/certs 2>$null
 $secureFilesExist = docker exec $CONTAINER_NAME ls -la /app/secure-storage
 $authFilesExist = docker exec $CONTAINER_NAME ls -la /app/auth-data
-$certsDirExists = docker exec $CONTAINER_NAME ls -la /app/secure-storage/certs
+# Check certificates directory exists and show its contents
+Write-Host "📂 Certificate directory contents:" -ForegroundColor Cyan
+docker exec $CONTAINER_NAME ls -la /app/secure-storage/certs
 
 if ($secureFilesExist -match "admin_password.txt" -and $authFilesExist -match "authenticated_users.json") {
     Write-Host "✔ Data files are present and accessible" -ForegroundColor Green
@@ -122,5 +182,7 @@ Write-Host " - Admin password: /app/secure-storage/admin_password.txt" -Foregrou
 Write-Host " - Application data: signfile-data ➜ /app/data" -ForegroundColor Yellow
 Write-Host " - Auth users: signfile-auth-users ➜ /app/auth-data" -ForegroundColor Yellow
 
-Write-Host "`n🎉 Setup complete! Access the app at http://localhost:3000" -ForegroundColor Green
+Write-Host "`n🎉 Setup complete!" -ForegroundColor Green
+Write-Host "📱 Development: Access the app at http://localhost:3000" -ForegroundColor Green
+Write-Host "🌐 Production: Access the app at https://signfile.ibanfirst.lan" -ForegroundColor Green
 Write-Host "📜 Use the admin password above to log in." -ForegroundColor Green

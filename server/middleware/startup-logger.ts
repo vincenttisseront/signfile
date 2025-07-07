@@ -1,34 +1,22 @@
 /**
- * Nuxt server middleware to integrate startup logging
- * This will run when the server starts and log system information
+ * Minimal server middleware to log startup
  */
 
 import { defineEventHandler } from 'h3'
-import { logSystemInfo, logHealthCheck } from '../utils/startup-logger'
 import logger from '../utils/logger'
 
 // Track if initialization has been performed
 let initialized = false
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(() => {
   if (!initialized) {
-    logger.info('startup', 'Server middleware initialized - logging system information')
-    
-    // Log system info at startup
-    logSystemInfo()
-    
-    // Set up periodic health checks
-    const HEALTH_CHECK_INTERVAL = 5 * 60 * 1000 // 5 minutes
-    
-    // Log first health check after 30 seconds
-    setTimeout(() => {
-      logHealthCheck()
-      
-      // Then set interval for regular health checks
-      setInterval(() => {
-        logHealthCheck()
-      }, HEALTH_CHECK_INTERVAL)
-    }, 30 * 1000)
+    // Just log startup without complex operations
+    logger.info('startup', '======================================================')
+    logger.info('startup', 'SignFile Server Started')
+    logger.info('startup', `Environment: ${process.env.NODE_ENV || 'development'}`)
+    logger.info('startup', `Log Level: ${process.env.LOG_LEVEL || 'info'}`)
+    logger.info('startup', `Node Version: ${process.version}`)
+    logger.info('startup', '======================================================')
     
     initialized = true
   }

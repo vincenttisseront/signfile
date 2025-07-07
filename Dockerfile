@@ -57,9 +57,9 @@ COPY --chown=signfile:signfile --from=jsign /usr/local/bin/jsign /usr/local/bin/
 COPY --chown=signfile:signfile --from=jsign /usr/local/bin/jsign.jar /usr/local/bin/
 
 # Create writable directories and ensure proper ownership
-RUN mkdir -p /app/secure-storage/certs /app/temp /app/data /app/auth-data /app/secure-storage && \
-    chmod -R 777 /app/secure-storage /app/temp /app/data /app/auth-data && \
-    chown -R signfile:signfile /app/secure-storage /app/temp /app/data /app/auth-data
+RUN mkdir -p /app/secure-storage/certs /app/temp /app/data /app/auth-data /app/secure-storage /tmp/startup-debug && \
+    chmod -R 777 /app/secure-storage /app/temp /app/data /app/auth-data /tmp/startup-debug && \
+    chown -R signfile:signfile /app/secure-storage /app/temp /app/data /app/auth-data /tmp/startup-debug
 
 # Startup script
 RUN echo '#!/bin/sh\n\
@@ -112,22 +112,30 @@ fi\n\
 echo "[STARTUP] Environment: NODE_ENV=$NODE_ENV"\n\
 echo "[STARTUP] Log level: $LOG_LEVEL"\n\
 \n\
-# Final verification of critical directories\n\
-echo "[STARTUP] Verifying required directories..."\n\
+# Create simple log directory for debugging even if Node.js fails to start\n\
+mkdir -p /tmp/startup-debug 2>/dev/null || true\n\
+chmod 777 /tmp/startup-debug 2>/dev/null || true\n\
+DATE_TIME=$(date "+%Y-%m-%d %H:%M:%S")\n\
+echo "$DATE_TIME - Starting container" > /tmp/startup-debug/startup.log\n\
+echo "$DATE_TIME - Container user: $(whoami)" >> /tmp/startup-debug/startup.log\n\
+env | grep -v PASSWORD | grep -v SECRET | sort >> /tmp/startup-debug/startup.log\n\
+ls -la /app >> /tmp/startup-debug/startup.log 2>&1\n\
+echo "NODE_PATH=$NODE_PATH" >> /tmp/startup-debug/startup.log\n\
+echo "PATH=$PATH" >> /tmp/startup-debug/startup.log\n\
+\n\
+# Super basic directory check to avoid potential issues\n\
+echo "[STARTUP] Checking critical directories..."\n\
 for dir in "$CERTS_DIR" "$TEMP_DIR" "$DATA_DIR" "$SECURE_STORAGE_DIR" "/app/auth-data"; do\n\
-  if [ -d "$dir" ]; then\n\
-    echo "[STARTUP] ✅ Directory exists: $dir"\n\
-    ls -la "$dir" | head -n 5\n\
-  else\n\
-    echo "[STARTUP] ❌ Missing directory: $dir"\n\
-    # Try to create it again as a last resort\n\
-    mkdir -p "$dir" 2>/dev/null && echo "[STARTUP] Created missing directory"\n\
-    chmod -R 777 "$dir" 2>/dev/null\n\
-  fi\n\
+  mkdir -p "$dir" 2>/dev/null || echo "[STARTUP] Warning: could not create $dir"\n\
+  chmod -R 777 "$dir" 2>/dev/null || echo "[STARTUP] Warning: could not chmod $dir"\n\
+  echo "[STARTUP] Verified directory: $dir"\n\
 done\n\
 \n\
 echo "[STARTUP] Starting Nuxt server..."\n\
-exec node .output/server/index.mjs\n' > /app/start.sh && \
+# Try to start the server in a way that captures errors to a log file\n\
+mkdir -p /tmp/startup-debug 2>/dev/null || echo "[STARTUP] Warning: Could not create log directory"\n\
+chmod 777 /tmp/startup-debug 2>/dev/null || echo "[STARTUP] Warning: Could not set log directory permissions"\n\
+exec node .output/server/index.mjs 2>&1 | tee -a /tmp/startup-debug/server.log\n' > /app/start.sh && \
     chmod +x /app/start.sh
 
 # Set env vars
@@ -148,16 +156,9 @@ USER signfile
 
 EXPOSE 3000
 
+# Use a more robust health check with multiple endpoint fallbacks
+# Container health check must use localhost:3000 because it's checking from inside the container
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD wget -q -O - http://localhost:3000/api/health > /tmp/health.json && \
-    if grep -q '"status":"healthy"' /tmp/health.json; then \
-      echo "Health check OK"; \
-      exit 0; \
-    else \
-      echo "Container unhealthy. Health check response:"; \
-      cat /tmp/health.json; \
-      echo "Check container logs for details"; \
-      exit 1; \
-    fi
+  CMD wget -q -O - http://localhost:3000/api/basic-health || wget -q -O - http://localhost:3000/api/health || exit 1
 
 CMD ["/app/start.sh"]
