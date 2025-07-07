@@ -58,7 +58,8 @@ export function logSystemInfo() {
     // Also write to a file that will be available even if the container crashes
     try {
       const fs = require('fs')
-      const debugDir = '/tmp/startup-debug'
+      // Use platform-appropriate directory - default to /tmp which works in both Windows and Linux
+      const debugDir = os.platform() === 'win32' ? 'C:/temp/startup-debug' : '/tmp/startup-debug'
       const logFile = `${debugDir}/node-startup.log`
       
       // Create directory if it doesn't exist
@@ -69,6 +70,8 @@ export function logSystemInfo() {
       const logContent = `
 ${timestamp} - Node.js startup log
 Working directory: ${process.cwd()}
+Platform: ${os.platform()} ${os.release()}
+Hostname: ${os.hostname()}
 CERTS_DIR: ${process.env.CERTS_DIR || '/app/secure-storage/certs'}
 TEMP_DIR: ${process.env.TEMP_DIR || '/app/temp'}
 DATA_DIR: ${process.env.DATA_DIR || '/app/data'}
@@ -101,7 +104,8 @@ export function logHealthCheck() {
     // Also write to the debug log file
     try {
       const fs = require('fs');
-      const debugDir = '/tmp/startup-debug';
+      // Use platform-appropriate directory
+      const debugDir = os.platform() === 'win32' ? 'C:/temp/startup-debug' : '/tmp/startup-debug';
       const healthLogFile = `${debugDir}/health-checks.log`;
       
       // Create directory if it doesn't exist
@@ -109,7 +113,7 @@ export function logHealthCheck() {
       
       // Log to file with timestamp
       const timestamp = new Date().toISOString();
-      fs.appendFileSync(healthLogFile, `${timestamp} - ${healthMsg}\n`);
+      fs.appendFileSync(healthLogFile, `${timestamp} - ${healthMsg} (${os.platform()})\n`);
     } catch (fsErr) {
       // Silently ignore filesystem errors - we don't want logging to crash the app
     }
