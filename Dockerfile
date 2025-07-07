@@ -71,7 +71,6 @@ RUN set -e; \
     mkdir -p /app/temp; \
     mkdir -p /app/data; \
     mkdir -p /app/auth-data; \
-    mkdir -p /tmp/startup-debug; \
     # Ensure signfile user owns app directories
     chown -R signfile:signfile /app; \
     # Set relaxed permissions on data directories for compatibility
@@ -79,7 +78,6 @@ RUN set -e; \
     chmod -R 755 /app/temp; \
     chmod -R 755 /app/data; \
     chmod -R 755 /app/auth-data; \
-    chmod -R 777 /tmp/startup-debug; \
     # Special write permissions for key directories
     chmod 777 /app/secure-storage/certs; \
     chmod 777 /app/temp; \
@@ -96,7 +94,7 @@ ENV NODE_ENV=production
 ENV TZ=Europe/Paris
 ENV NITRO_HOST=0.0.0.0
 ENV JSIGN_VERSION=7.1
-ENV LOG_LEVEL=debug
+ENV LOG_LEVEL=info
 
 # Set directories and paths (non-sensitive)
 ENV CERTS_DIR=/app/secure-storage/certs

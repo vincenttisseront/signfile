@@ -31,7 +31,7 @@ docker run -d \
   -e AUTHENTICATED_USERS_FILE=/app/auth-data/authenticated_users.json \
   -e CERTS_DIR=/app/secure-storage/certs \
   -e ADMIN_PASSWORD_FILE=/app/secure-storage/admin_password.txt \
-  -e LOG_LEVEL=debug \
+  -e LOG_LEVEL=info \
   ${FULL_IMAGE_NAME}
 
 echo -e "\e[36m⏳ Waiting for container readiness...\e[0m"
@@ -68,25 +68,6 @@ while [ "$containerReady" = false ] && [ $attempt -lt $MAX_ATTEMPTS ]; do
         # Check if container exists but is unhealthy or exited
         containerStatus=$(docker ps -a --filter "name=$CONTAINER_NAME" --format "{{.Status}}" || echo "Unknown")
         echo -e "\e[33mContainer status: $containerStatus\e[0m"
-        
-        # Create debug log directory
-        debugDir="debug-logs"
-        mkdir -p ${debugDir}
-        
-        # Try to copy logs from container to host for analysis
-        echo -e "\e[33mCopying logs to $debugDir folder...\e[0m"
-        docker cp "${CONTAINER_NAME}:/tmp/startup-debug/." ${debugDir}/ 2>/dev/null || true
-        
-        # Display logs if available
-        if [ -f "$debugDir/startup.log" ]; then
-            echo -e "\e[33m--- Container startup log: ---\e[0m"
-            cat "$debugDir/startup.log" | while read line; do echo -e "\e[90m$line\e[0m"; done
-        fi
-        
-        if [ -f "$debugDir/server.log" ]; then
-            echo -e "\e[33m--- Node.js server log: ---\e[0m"
-            cat "$debugDir/server.log" | while read line; do echo -e "\e[90m$line\e[0m"; done
-        fi
         
         if [ -f "$debugDir/node-startup.log" ]; then
             echo -e "\e[33m--- Node application startup log: ---\e[0m"

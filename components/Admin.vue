@@ -485,8 +485,6 @@ function resetCertValidation() {
   certInfoError.value = null;
 }
 function attemptLocalLogin() {
-  console.log('[Admin.vue] Attempting local admin login');
-
   if (!enteredPassword.value) {
     localAuthError.value = "Password is required";
     return;
@@ -508,8 +506,7 @@ function attemptLocalLogin() {
     return response.json();
   })
   .then(passData => {
-    console.log('[Admin.vue] Admin password file check:', passData.password ? 'exists' : 'missing');
-    // Don't log the actual password, just check if it exists
+    // Check if admin password file exists
 
     // Now proceed with password verification
     return fetch('/api/admin-data', {
@@ -534,7 +531,6 @@ function attemptLocalLogin() {
     }
     
     if (data.success) {
-      console.log('[Admin.vue] Local admin authentication successful');
       isLocalAdminAuthenticated.value = true;
       showLoginModal.value = false;
       
@@ -555,7 +551,6 @@ function attemptLocalLogin() {
             isLocalAdmin: true
           };
           userAdminRef.value.recordUserAuthentication(localAdminUser)
-            .then(() => console.log('[Admin.vue] Successfully recorded local admin authentication'))
             .catch((err: Error) => console.error('[Admin.vue] Error recording authentication:', err));
         }
       } catch (err) {
@@ -564,10 +559,6 @@ function attemptLocalLogin() {
     } else {
       // Password verification failed
       localAuthError.value = data.message || "Invalid administrator password";
-      console.error('[Admin.vue] Local admin authentication failed:', data.message);
-      
-      // Show more detailed error to help diagnose the issue
-      console.log('[Admin.vue] Authentication response:', JSON.stringify(data));
       
       // If no meaningful error message was provided, set a generic message
       if (!data.message) {

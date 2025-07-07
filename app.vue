@@ -133,7 +133,6 @@
       </button>
       <NuxtRouteAnnouncer />
       <NuxtPage />
-      <LayoutDebug v-if="isDev" />
     </main>
   </div>
 </template>
@@ -141,7 +140,6 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import LayoutDebug from '~/components/LayoutDebug.vue';
 import { useLayout } from '~/composables/useLayout';
 import { useOkta } from '~/composables/useOkta';
 import { useAppVersion } from '~/composables/useAppVersion';

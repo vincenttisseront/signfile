@@ -2,11 +2,9 @@ import fs from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
 import { defineEventHandler, readBody } from 'h3'
+import logger from '../utils/logger'
 
 export default defineEventHandler(async (event: any) => {
-  // Log request details to help with debugging
-  console.log(`[admin-data.ts] Received ${event.req.method} request: ${event.req.url}`)
-  
   // Get the data directory from environment
   const dataDir = process.env.DATA_DIR || '/app/data'
   const authDataDir = process.env.AUTH_DATA_DIR || '/app/auth-data'
@@ -16,31 +14,14 @@ export default defineEventHandler(async (event: any) => {
   const adminUsersFile = process.env.ADMIN_USERS_FILE || path.join(dataDir, 'admin_users.json')
   const authenticatedUsersFile = process.env.AUTHENTICATED_USERS_FILE || path.join(authDataDir, 'authenticated_users.json')
   
-  // Log the file paths we're using
-  console.log('[admin-data.ts] Using file paths:')
-  console.log(`  - Data directory: ${dataDir}`)
-  console.log(`  - Auth data directory: ${authDataDir}`)
-  console.log(`  - Secure storage: ${secureStorageDir}`)
-  console.log(`  - Certs directory: ${certsDir}`)
-  console.log(`  - Admin password file: ${adminPasswordFile}`)
-  console.log(`  - Admin users file: ${adminUsersFile}`)
-  console.log(`  - Authenticated users file: ${authenticatedUsersFile}`)
-  
   // Ensure data directories exist
   try {
     await fs.mkdir(dataDir, { recursive: true, mode: 0o777 })
-    console.log(`[admin-data.ts] Ensured data directory exists: ${dataDir}`)
-    
     await fs.mkdir(authDataDir, { recursive: true, mode: 0o777 })
-    console.log(`[admin-data.ts] Ensured auth data directory exists: ${authDataDir}`)
-    
     await fs.mkdir(secureStorageDir, { recursive: true, mode: 0o777 })
-    console.log(`[admin-data.ts] Ensured secure storage directory exists: ${secureStorageDir}`)
-    
     await fs.mkdir(certsDir, { recursive: true, mode: 0o777 })
-    console.log(`[admin-data.ts] Ensured certificates directory exists: ${certsDir}`)
   } catch (err) {
-    console.warn('[admin-data.ts] Failed to create data directories:', err)
+    logger.warn('admin-data', 'Failed to create data directories:', err)
     // Continue execution even if mkdir fails
   }
 
@@ -53,13 +34,9 @@ export default defineEventHandler(async (event: any) => {
     try {
       if (type === 'password') {
         // Return admin password if it exists
-        console.log(`[admin-data.ts] Checking for admin password file at: ${adminPasswordFile}`)
-        
         if (existsSync(adminPasswordFile)) {
-          console.log(`[admin-data.ts] Admin password file exists, reading contents`)
           try {
             const password = await fs.readFile(adminPasswordFile, 'utf-8')
-            console.log(`[admin-data.ts] Successfully read admin password (length: ${password.trim().length})`)
             return { password: password.trim() }
           } catch (err) {
             console.error(`[admin-data.ts] Error reading admin password file:`, err)
