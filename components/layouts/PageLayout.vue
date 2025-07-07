@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container" :class="contentClass">
+  <div class="page-container" :class="[contentClass, { 'admin-mode': isAdminPage }]" ref="layoutRef">
     <div class="page-content" :style="{maxWidth: containerWidth}">
       <slot></slot>
     </div>
@@ -8,40 +8,58 @@
 
 <script setup>
 import { useLayout } from '~/composables/useLayout';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import { useRoute } from 'vue-router';
 
 // Use our layout composable to get responsive behavior
-const { contentClass, containerWidth } = useLayout();
+const { contentClass, containerWidth, isSmallScreen, isMediumScreen, updateLayout } = useLayout();
+
+// Check if we're on an admin page
+const route = useRoute();
+const isAdminPage = computed(() => route.path.includes('/admin'));
+
+// Component element ref
+const layoutRef = ref(null);
+
+// Make layout adjustments when mounted
+onMounted(() => {
+  // Apply any specific layout adjustments if needed
+  if (isAdminPage.value) {
+    document.body.classList.add('admin-layout');
+  }
+  
+  // Force layout update after component is mounted
+  setTimeout(() => {
+    updateLayout();
+  }, 100);
+  
+  // Update layout on resize
+  window.addEventListener('resize', updateLayoutOnResize);
+});
+
+// Clean up event listener
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateLayoutOnResize);
+  
+  // Remove admin layout class if it was added
+  if (isAdminPage.value) {
+    document.body.classList.remove('admin-layout');
+  }
+});
+
+// Debounced update function
+const updateLayoutOnResize = debounce(() => {
+  updateLayout();
+}, 100);
+
+// Debounce helper
+function debounce(fn, delay) {
+  let timeoutId;
+  return function(...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
 </script>
 
-<style scoped>
-.page-container {
-  width: 100%;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--page-padding, 2rem);
-  transition: padding 0.2s ease;
-}
 
-.page-content {
-  width: 100%;
-  min-height: var(--content-min-height, 700px);
-  margin: 0 auto;
-  position: relative;
-  transition: max-width 0.2s ease;
-}
-
-/* Responsive classes applied based on screen size */
-.layout-content-mobile {
-  padding: 1rem 0.5rem;
-}
-
-.layout-content-tablet {
-  padding: 1.5rem;
-}
-
-.layout-content-desktop {
-  padding: 2rem;
-}
-</style>

@@ -68,8 +68,9 @@ export default defineEventHandler(async (event) => {
     }
 
     // Write certificate and signature to temp files
-    const certPath = path.join(tmpdir(), `cert-${randomUUID()}.pem`)
-    const sigPath = path.join(tmpdir(), `sig-${randomUUID()}.bin`)
+    const baseTempDir = process.env.TEMP_DIR || tmpdir();
+    const certPath = path.join(baseTempDir, `cert-${randomUUID()}.pem`)
+    const sigPath = path.join(baseTempDir, `sig-${randomUUID()}.bin`)
     await fs.writeFile(certPath, certificatePem)
     await fs.writeFile(sigPath, Buffer.from(signatureBase64, 'base64'))
 

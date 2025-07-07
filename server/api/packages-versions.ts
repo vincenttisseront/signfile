@@ -2,22 +2,61 @@ import fs from 'fs/promises'
 import path from 'path'
 import { spawn } from 'child_process'
 import https from 'https'
+import { getQuery } from 'h3'
 
 // --- Version Helpers ---
 function isOutdated(current: string, latest: string): boolean {
-  const parse = (v: string) =>
-    (v || '')
-      .replace(/[^\d.]/g, '')
-      .split('.')
-      .map(n => parseInt(n, 10) || 0)
+  if (current === latest) return false
+  if (!current || !latest || current === 'Unavailable' || latest === 'Unavailable') return false
 
-  const [c, l] = [parse(current), parse(latest)]
-  const len = Math.max(c.length, l.length)
-  for (let i = 0; i < len; i++) {
-    if ((c[i] || 0) < (l[i] || 0)) return true
-    if ((c[i] || 0) > (l[i] || 0)) return false
+  // Proper semver comparison
+  try {
+    // Extract numeric parts and pre-release identifiers
+    const parseSemver = (version: string) => {
+      // Remove any leading 'v' or other non-version characters
+      const cleaned = version.trim().replace(/^[^0-9]*/, '')
+      
+      // Split by dash to separate version from pre-release
+      const parts = cleaned.split('-')
+      // Get the numeric parts
+      const nums = parts[0].split('.').map(n => parseInt(n, 10) || 0)
+      // Pad with zeros if needed
+      while (nums.length < 3) nums.push(0)
+      
+      // Check for pre-release tags
+      const isPrerelease = parts.length > 1 || 
+        /alpha|beta|rc|preview|pre|dev|experimental|nightly|unstable/i.test(version)
+      
+      return { nums, isPrerelease }
+    }
+
+    const curr = parseSemver(current)
+    const lat = parseSemver(latest)
+
+    // Compare major.minor.patch
+    for (let i = 0; i < 3; i++) {
+      if (curr.nums[i] < lat.nums[i]) return true
+      if (curr.nums[i] > lat.nums[i]) return false
+    }
+
+    // If we reach here, numeric versions are the same
+    // A non-prerelease is newer than a prerelease with the same version numbers
+    if (curr.isPrerelease && !lat.isPrerelease) return true
+    
+    return false
+  } catch (e) {
+    // Fallback to simple string comparison if parsing fails
+    return current !== latest
   }
-  return false
+}
+
+// Check if a version is a pre-release (alpha, beta, rc, etc)
+function isPrerelease(version: string): boolean {
+  // Skip empty or unavailable versions
+  if (!version || version === 'Unavailable') return false
+  
+  // Match common pre-release identifiers
+  return /\b(alpha|beta|rc|preview|pre|dev|experimental|nightly|unstable|snapshot)\b|-alpha\.|-beta\.|-pre\.|-rc\.|[.-]dev[0-9]|[.-]canary|\+[0-9a-f]{7}/i.test(version)
 }
 
 function getJsignVersion(): Promise<string> {
@@ -121,7 +160,7 @@ async function getLatestOpenJDK17(): Promise<string> {
 }
 
 // --- NPM Package Version Helpers ---
-async function getNpmPackages() {
+async function getNpmPackages(includePrerelease: boolean = false) {
   const fs = await import('fs/promises')
   const path = await import('path')
   const https = await import('https')
@@ -139,21 +178,35 @@ async function getNpmPackages() {
   }
   const pkgs = Object.keys(allDeps)
   const results = await Promise.all(pkgs.map(async name => {
-    let current = 'Unavailable', latest = 'Unavailable', outdated = false
+    let current = 'Unavailable', latest = 'Unavailable', outdated = false, latestReleaseDate = ''
     // Try to read installed version from node_modules
     try {
       const modPkg = JSON.parse(await fs.readFile(path.join(nodeModulesPath, name, 'package.json'), 'utf8'))
       current = modPkg.version || 'Unavailable'
     } catch {}
     // Fetch latest version from GitHub releases if possible, else fallback to npm
-    let repo = null
+    let repo: string | null = null
+    let repoUrl = null
     try {
       // Try to get repo from package.json
       const modPkg = JSON.parse(await fs.readFile(path.join(nodeModulesPath, name, 'package.json'), 'utf8'))
-      if (modPkg.repository && typeof modPkg.repository === 'object' && modPkg.repository.url) {
-        // e.g. "git+https://github.com/nuxt/nuxt.git"
-        const match = modPkg.repository.url.match(/github.com[:/](.+?)(?:\.git)?$/i)
-        if (match) repo = match[1].replace(/\.git$/, '')
+      if (modPkg.repository) {
+        if (typeof modPkg.repository === 'object' && modPkg.repository.url) {
+          // e.g. "git+https://github.com/nuxt/nuxt.git"
+          const url = modPkg.repository.url
+          repoUrl = url.replace(/^git\+/, '')
+                       .replace(/\.git$/, '')
+                       .replace(/^git@github\.com:/, 'https://github.com/')
+          
+          const match = url.match(/github.com[:/](.+?)(?:\.git)?$/i)
+          if (match) repo = match[1].replace(/\.git$/, '')
+        } else if (typeof modPkg.repository === 'string') {
+          // Handle shorthand "owner/repo" format
+          if (modPkg.repository.includes('/')) {
+            repo = modPkg.repository
+            repoUrl = `https://github.com/${repo}`
+          }
+        }
       }
     } catch {}
     let isTypesPackage = /^@types\//.test(name)
@@ -182,7 +235,9 @@ async function getNpmPackages() {
                   }
                   return 0
                 })
-                resolve(versions[0])
+                const latestVersion = versions[0]
+                latestReleaseDate = json.time && json.time[latestVersion] ? json.time[latestVersion] : ''
+                resolve(latestVersion)
               } else {
                 resolve('Unavailable')
               }
@@ -207,8 +262,8 @@ async function getNpmPackages() {
               try {
                 const json = JSON.parse(data)
                 const ghVersion = (json.tag_name || json.name || 'Unavailable').replace(/^v/, '')
-                if (ghVersion && ghVersion !== 'Unavailable') resolve(ghVersion)
-                else resolve('Unavailable')
+                // GitHub API does not provide release date in npm format, so fallback to npm below
+                resolve(ghVersion)
               } catch {
                 resolve('Unavailable')
               }
@@ -228,12 +283,32 @@ async function getNpmPackages() {
               res.on('end', () => {
                 try {
                   const json = JSON.parse(data)
+                  latestReleaseDate = json.time && json.time[json.version] ? json.time[json.version] : ''
                   resolve(json.version || 'Unavailable')
                 } catch {
                   resolve('Unavailable')
                 }
               })
             }).on('error', () => resolve('Unavailable'))
+          })
+        } else {
+          // If we got a version from GitHub, still try to get the release date from npm
+          await new Promise<void>(resolve => {
+            https.get({
+              hostname: 'registry.npmjs.org',
+              path: `/${name.replace(/^@/, '%40')}`,
+              headers: { 'User-Agent': 'SignFile-App' }
+            }, res => {
+              let data = ''
+              res.on('data', chunk => (data += chunk))
+              res.on('end', () => {
+                try {
+                  const json = JSON.parse(data)
+                  latestReleaseDate = json.time && json.time[latest] ? json.time[latest] : ''
+                } catch {}
+                resolve()
+              })
+            }).on('error', () => resolve())
           })
         }
       } else {
@@ -249,6 +324,7 @@ async function getNpmPackages() {
             res.on('end', () => {
               try {
                 const json = JSON.parse(data)
+                latestReleaseDate = json.time && json.time[json.version] ? json.time[json.version] : ''
                 resolve(json.version || 'Unavailable')
               } catch {
                 resolve('Unavailable')
@@ -279,20 +355,167 @@ async function getNpmPackages() {
         }).on('error', () => resolve('Unavailable'))
       })
     }
-    outdated = current !== 'Unavailable' && latest !== 'Unavailable' && current !== latest
-    return { name, current, latest, outdated }
+    
+    // If we're excluding pre-releases and the latest version is a pre-release, try to find a stable version
+    if (!includePrerelease && isPrerelease(latest) && latest !== 'Unavailable') {
+      // Try to get all versions and pick the highest non-prerelease
+      const allVersions = await new Promise<string[]>(resolve => {
+        https.get({
+          hostname: 'registry.npmjs.org',
+          path: `/${name.replace(/^@/, '%40')}`,
+          headers: { 'User-Agent': 'SignFile-App' }
+        }, res => {
+          let data = ''
+          res.on('data', chunk => (data += chunk))
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(data)
+              const versions = Object.keys(json.versions || {})
+              resolve(versions)
+            } catch {
+              resolve([])
+            }
+          })
+        }).on('error', () => resolve([]))
+      })
+      
+      if (allVersions.length > 0) {
+        // Sort versions by semver, highest first
+        allVersions.sort((a, b) => {
+          // Helper function to parse semver properly
+          const parseSemver = (v: string) => {
+            // Clean version string and remove leading 'v' if present
+            const cleaned = v.replace(/^[^0-9]*/, '')
+            // Split on dash to separate version from pre-release identifiers
+            const parts = cleaned.split('-')
+            // Get numeric parts
+            const nums = parts[0].split('.').map(n => parseInt(n, 10) || 0)
+            // Ensure we have at least 3 numeric parts
+            while (nums.length < 3) nums.push(0)
+            // Extract pre-release info
+            const prerelease = parts.length > 1 ? parts[1] : ''
+            
+            return { 
+              nums, 
+              prerelease,
+              isPrerelease: parts.length > 1 || /alpha|beta|rc|preview|pre|dev|experimental|nightly|unstable/i.test(v)
+            }
+          }
+          
+          const vA = parseSemver(a)
+          const vB = parseSemver(b)
+          
+          // Compare major.minor.patch
+          for (let i = 0; i < 3; i++) {
+            if (vA.nums[i] > vB.nums[i]) return -1
+            if (vA.nums[i] < vB.nums[i]) return 1
+          }
+          
+          // If same version numbers, non-prerelease wins
+          if (!vA.isPrerelease && vB.isPrerelease) return -1
+          if (vA.isPrerelease && !vB.isPrerelease) return 1
+          
+          // If both are prerelease or both aren't, compare lexicographically
+          if (vA.prerelease < vB.prerelease) return -1
+          if (vA.prerelease > vB.prerelease) return 1
+          
+          return 0
+        })
+        
+        // Find the first non-prerelease version
+        const stableVersion = allVersions.find(v => !isPrerelease(v))
+        if (stableVersion) {
+          latest = stableVersion
+        }
+      }
+    }
+    
+    // Handle special cases like formidable where version numbers can be tricky
+    if (name === 'formidable') {
+      console.log(`[packages-versions] Formidable versions - Current: ${current}, Latest: ${latest}`)
+      
+      // Parse versions properly and log
+      try {
+        const currentParts = current.split('.').map(Number)
+        const latestParts = latest.split('.').map(Number)
+        
+        console.log(`[packages-versions] Formidable parsed - Current: [${currentParts.join(', ')}], Latest: [${latestParts.join(', ')}]`)
+        
+        // Deep check if current version is actually newer than latest
+        const isCurrNewer = currentParts.length >= 3 && 
+          latestParts.length >= 3 && 
+          (
+            currentParts[0] > latestParts[0] || 
+            (currentParts[0] === latestParts[0] && currentParts[1] > latestParts[1]) ||
+            (currentParts[0] === latestParts[0] && currentParts[1] === latestParts[1] && currentParts[2] > latestParts[2])
+          )
+        
+        if (isCurrNewer) {
+          console.log('[packages-versions] Current formidable version is newer than latest, marking as up to date')
+          latest = current
+          outdated = false
+        }
+      } catch (err) {
+        console.error(`[packages-versions] Error comparing formidable versions:`, err)
+      }
+    }
+    
+    // Use our improved isOutdated function for a more accurate check
+    outdated = current !== 'Unavailable' && latest !== 'Unavailable' && isOutdated(current, latest)
+    
+    // Check if latest version is a prerelease
+    const isLatestPrerelease = isPrerelease(latest)
+    
+    // If we have a GitHub repo but no URL, construct it
+    if (repo && !repoUrl) {
+      repoUrl = `https://github.com/${repo}`
+    }
+    
+    // For packages with known GitHub repos but not detected
+    if (!repoUrl) {
+      const knownRepos: Record<string, string> = {
+        '@okta/okta-auth-js': 'https://github.com/okta/okta-auth-js',
+        'vue': 'https://github.com/vuejs/vue',
+        'nuxt': 'https://github.com/nuxt/framework',
+        'tailwindcss': 'https://github.com/tailwindlabs/tailwindcss',
+        'typescript': 'https://github.com/microsoft/TypeScript',
+        'pinia': 'https://github.com/vuejs/pinia'
+      }
+      
+      if (knownRepos[name]) {
+        repoUrl = knownRepos[name]
+        if (!repo) {
+          const match = repoUrl.match(/github\.com\/([^\/]+\/[^\/]+)/)
+          if (match) repo = match[1]
+        }
+      }
+    }
+    
+    return { 
+      name, 
+      current, 
+      latest, 
+      latestReleaseDate,
+      outdated,
+      isPrerelease: isLatestPrerelease,
+      repository: repoUrl || `https://www.npmjs.com/package/${name}`
+    }
   }))
   return results
 }
 
 // --- Final API Handler ---
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
+  // Check if we should include pre-releases
+  const query = getQuery(event)
+  const includePrerelease = query.includePrerelease === 'true'
+  
   const [jsign, opensslInfo, openjdk, baseImage, npmPackages] = await Promise.all([
     getJsignVersion(),
     getOpenSSLVersion(),
     getOpenJDKVersion(),
     getBaseImage(),
-    getNpmPackages()
+    getNpmPackages(includePrerelease)
   ])
 
   const opensslOutdated = opensslInfo.current !== 'Unavailable'

@@ -55,13 +55,16 @@ export default defineEventHandler(async (event) => {
     console.log(`[sign.post.ts] Request started at: ${requestTimestamp}`);
     
     // Create temp directory with unique name
-    tempDir = path.join(tmpdir(), `signfile-${requestTimestamp}-${randomUUID()}`);
+    const baseTempDir = process.env.TEMP_DIR || tmpdir();
+    tempDir = path.join(baseTempDir, `signfile-${requestTimestamp}-${randomUUID()}`);
     try {
-      await fs.mkdir(tempDir, { recursive: true });
+      await fs.mkdir(tempDir, { recursive: true, mode: 0o777 });
       console.log(`[sign.post.ts] Created temp dir: ${tempDir}`);
     } catch (dirErr) {
       console.error(`[sign.post.ts] Failed to create temp dir: ${dirErr}`);
-      // Continue with default temp dir
+      // Fallback to system temp dir if the custom one fails
+      tempDir = path.join(tmpdir(), `signfile-${requestTimestamp}-${randomUUID()}`);
+      await fs.mkdir(tempDir, { recursive: true, mode: 0o777 });
     }
 
     // Configure formidable with specific upload dir to avoid conflicts
@@ -86,7 +89,7 @@ export default defineEventHandler(async (event) => {
     let certPath = files.certificate?.[0]?.filepath
     const storedCert = fields.storedCert?.[0]
     if (storedCert) {
-      certPath = path.join('/certs', path.basename(storedCert))
+      certPath = path.join(process.env.CERTS_DIR || '/certs', path.basename(storedCert))
       console.log('[sign.post.ts] Using stored certificate:', certPath)
     }
     const scriptPath = files.script?.[0]?.filepath

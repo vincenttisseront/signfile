@@ -5,6 +5,10 @@ export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss'
   ],
+  plugins: [
+    // Fix for Okta authentication issues
+    '~/plugins/okta-fixes.client.js'
+  ],
   tailwindcss: {
     configPath: '~/tailwind.config.ts',
     exposeConfig: true,
@@ -35,7 +39,9 @@ export default defineNuxtConfig({
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         // Preconnect to improve performance
-        { rel: 'preconnect', href: process.env.OKTA_ISSUER || '' }
+        { rel: 'preconnect', href: process.env.OKTA_ISSUER || '' },
+        // Preload favicon correctly with as="image"
+        { rel: 'preload', href: '/favicon.ico', as: 'image' }
       ]
     },
     // Enhanced page transitions to prevent layout shifts

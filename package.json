@@ -1,6 +1,6 @@
 {
   "name": "signfile",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,6 @@
     "preview": "nuxt preview",
     "prepare": "nuxt prepare",
     "start": "nuxt start"
-    
   },
   "dependencies": {
     "@okta/okta-auth-js": "^7.12.1",
