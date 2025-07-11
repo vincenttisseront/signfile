@@ -12,7 +12,7 @@ export default defineEventHandler(() => {
   if (!initialized) {
     // Just log startup without complex operations
     logger.info('startup', '======================================================')
-    logger.info('startup', 'SignFile Server Started')
+    logger.info('startup', 'SecurityConsole Server Started')
     logger.info('startup', `Environment: ${process.env.NODE_ENV || 'development'}`)
     logger.info('startup', `Log Level: ${process.env.LOG_LEVEL || 'info'}`)
     logger.info('startup', `Node Version: ${process.version}`)

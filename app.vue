@@ -9,8 +9,8 @@
     
     <!-- Sidebar Menu -->
     <aside class="sidebar" :class="{ 'open': isSidebarOpen }">
-      <div class="sidebar-logo">
-        <span class="text-lg font-bold text-security">SignFile</span>
+      <div class="sidebar-logo flex items-center justify-center mb-4">
+        <img src="/images/logo/securityconsole_rectangle_logo2.png" alt="Security Console Logo" style="max-width:200px;max-height:400px;object-fit:contain;" />
       </div>
       <!-- Mobile close button -->
       <button v-if="isSmallScreen && isSidebarOpen" 
@@ -22,7 +22,11 @@
         <div class="flex-grow">
           <NuxtLink to="/" class="menu-item" active-class="active" @click="closeOnMobile">
             <span class="menu-icon">📝</span>
-            <span>Sign File</span>
+            <span>Dashboard</span>
+          </NuxtLink>
+          <NuxtLink to="/agent" class="menu-item" active-class="active" @click="closeOnMobile">
+            <span class="menu-icon">🛡️</span>
+            <span>Agents</span>
           </NuxtLink>
           <NuxtLink to="/about" class="menu-item" active-class="active" @click="closeOnMobile">
             <span class="menu-icon">ℹ️</span>
@@ -50,14 +54,6 @@
               >
                 <span class="menu-icon">📊</span>
                 <span>System Info</span>
-              </button>
-              <button 
-                class="menu-item"
-                :class="{ 'active': isAdminSection('certificates') }"
-                @click="navigateAdminSection('certificates')"
-              >
-                <span class="menu-icon">🔐</span>
-                <span>Certificate Management</span>
               </button>
               <button 
                 class="menu-item"
@@ -109,7 +105,7 @@
           </div>
         </div>
         <div class="text-xs text-center text-modernity-50 pt-2 border-t border-security-10">
-          &copy; {{ new Date().getFullYear() }} SignFile<br>
+          &copy; {{ new Date().getFullYear() }} Security Console<br>
           iBanFirst - All Rights Reserved
         </div>
       </nav>
@@ -139,6 +135,22 @@
 
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted, watch } from 'vue';
+// Polyfill atob for Node.js (SSR)
+if (typeof atob === 'undefined') {
+  globalThis.atob = function (str: string) {
+    console.log('[app.vue] Using Node.js atob polyfill');
+    return Buffer.from(str, 'base64').toString('binary');
+  };
+} else {
+  console.log('[app.vue] Native atob available:', typeof atob);
+}
+console.log('[app.vue] typeof atob:', typeof atob);
+if (typeof window !== 'undefined') {
+  console.log('[app.vue] typeof window:', typeof window);
+} else {
+  console.log('[app.vue] window is not defined (SSR)');
+}
+console.log('[app.vue] process.client:', typeof process !== 'undefined' ? process.client : 'undefined');
 import { useRouter } from 'vue-router';
 import { useLayout } from '~/composables/useLayout';
 import { useOkta } from '~/composables/useOkta';
@@ -283,6 +295,7 @@ watch(isSidebarOpen, (isOpen) => {
 
 // Authentication state
 const okta = useOkta() as OktaAuth | null;
+console.log('[app.vue] useOkta() result:', okta);
 const authState = reactive({
   isAuthenticated: false,
   user: null as any,
@@ -367,7 +380,7 @@ async function loginWithOkta() {
     
     // Store the timestamp of this login attempt to help with debugging and cleanup
     try {
-      localStorage.setItem('signfile_last_login_attempt', Date.now().toString());
+      localStorage.setItem('securityconsole_last_login_attempt', Date.now().toString());
     } catch (storageErr) {
       console.warn('[App.vue] Could not store login timestamp:', storageErr);
     }
@@ -422,7 +435,7 @@ async function loginWithOkta() {
     
     // Store the error for debugging purposes
     try {
-      localStorage.setItem('signfile_last_login_error', JSON.stringify({
+      localStorage.setItem('securityconsole_last_login_error', JSON.stringify({
         time: Date.now(),
         message: err.message,
         name: err.name

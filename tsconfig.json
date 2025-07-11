@@ -2,6 +2,6 @@
   // https://nuxt.com/docs/guide/concepts/typescript
   "extends": "./.nuxt/tsconfig.json",
   "exclude": [
-    "pages/layout-test.vue"
+    "pages/layout-test.vue",
   ]
 }

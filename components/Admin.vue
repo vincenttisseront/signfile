@@ -29,15 +29,7 @@
       
       <!-- All Admin content sections - Only shown when authenticated -->
       <div v-if="isAuthenticated || isLocalAdminAuthenticated">
-        <!-- Certificate Management Tab -->
-        <CertificateManagement 
-          v-if="activeTab === 'certificates'"
-          :user="user"
-          :isAuthenticated="isAuthenticated || isLocalAdminAuthenticated"
-          @remove-certificate="handleRemoveCertificate"
-          data-cert-management
-        />
-
+        
         <SystemInfo 
           v-if="activeTab === 'system'"
           :appVersion="appVersion"
@@ -82,7 +74,7 @@
         <div class="admin-login-modal">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-security">Admin Login</h2>
-            <div class="text-xs text-security/50">SignFile</div>
+            <div class="text-xs text-security/50">Security Console</div>
           </div>
           
           <div class="flex gap-3 mb-3 bg-security/5 p-0.5 rounded-lg">
@@ -211,147 +203,6 @@
           <p class="text-security mt-2 font-medium animate-pulse text-sm">Loading data...</p>
         </div>
       </div>
-      
-      <!-- Certificate Info Modal -->
-      <div v-if="showCertInfoModal" class="fixed inset-0 bg-modernity/60 backdrop-blur-sm flex items-center justify-center z-50">
-        <div class="bg-care rounded-lg shadow-lg p-2 w-full max-w-2xl max-h-90vh overflow-auto">
-          <div class="flex justify-between items-center border-b border-security/20 pb-1 mb-2">
-            <h3 class="text-lg font-semibold text-security">Certificate Information</h3>
-            <button @click="closeCertInfoModal" class="text-modernity/70 hover:text-modernity transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-          </div>
-          
-          <div class="space-y-2">
-            <div class="bg-white/60 p-1.5 rounded-md">
-              <h4 class="font-medium text-security mb-0.5 text-sm">Certificate Name</h4>
-              <p class="font-mono">{{ selectedCertName }}</p>
-            </div>
-            
-            <div v-if="!certInfo">
-              <p class="text-xs mb-1.5">Enter the certificate password to view its information</p>
-              
-              <div class="flex flex-col space-y-1.5">
-                <div class="relative">
-                  <input 
-                    type="password" 
-                    v-model="certPassword" 
-                    class="w-full px-2 py-1 border border-security/30 rounded-md bg-care text-modernity focus:ring-1 focus:ring-security focus:border-security outline-none transition-all duration-200" 
-                    placeholder="Enter certificate password"
-                    @keydown.enter="fetchCertificateInfo"
-                  />
-                  <button 
-                    type="button" 
-                    @click="togglePasswordVisibility" 
-                    class="absolute right-2 top-1/2 transform -translate-y-1/2 text-modernity/50 hover:text-modernity"
-                  >
-                    <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                  </button>
-                </div>
-                
-                <button 
-                  @click="fetchCertificateInfo" 
-                  class="py-1 px-2 bg-security text-care rounded-md font-medium hover:bg-security/80 transition-colors w-full text-sm" 
-                  :disabled="loadingCertInfo"
-                >
-                  <span v-if="!loadingCertInfo">View Certificate Information</span>
-                  <span v-else class="flex items-center gap-1.5">
-                    <span class="inline-block h-3 w-3 border-2 border-t-transparent border-care animate-spin rounded-full"></span>
-                    Loading...
-                  </span>
-                </button>
-              </div>
-              
-              <div v-if="certInfoError" class="mt-1.5 p-1 rounded-md bg-energy/10 border border-energy text-energy text-xs">
-                {{ certInfoError }}
-              </div>
-            </div>
-            
-            <div v-else class="space-y-1.5">
-              <div class="bg-white/60 p-1.5 rounded-md">
-                <h4 class="font-medium text-security mb-0.5 text-sm">Subject</h4>
-                <p class="font-mono break-all text-xs">{{ certInfo.subject }}</p>
-              </div>
-              <div class="bg-white/60 p-1.5 rounded-md">
-                <h4 class="font-medium text-security mb-0.5 text-sm">Issuer</h4>
-                <p class="font-mono break-all text-xs">{{ certInfo.issuer }}</p>
-              </div>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                <div class="bg-white/60 p-1.5 rounded-md">
-                  <h4 class="font-medium text-security mb-0.5 text-sm">Valid From</h4>
-                  <p>{{ formatDate(certInfo.validFrom) }}</p>
-                </div>
-                <div class="bg-white/60 p-1.5 rounded-md">
-                  <h4 class="font-medium text-security mb-0.5 text-sm">Valid To</h4>
-                  <p>{{ formatDate(certInfo.validTo) }}</p>
-                </div>
-              </div>
-              <div class="bg-white/60 p-1.5 rounded-md">
-                <h4 class="font-medium text-security mb-0.5 text-sm">Serial Number</h4>
-                <p class="font-mono break-all text-xs">{{ certInfo.serialNumber }}</p>
-              </div>
-              <div class="bg-white/60 p-1.5 rounded-md">
-                <h4 class="font-medium text-security mb-0.5 text-sm">Certificate Type</h4>
-                <p>{{ certInfo.ca ? 'CA Certificate (Root/Intermediate)' : 'End Entity Certificate' }}</p>
-              </div>
-              <div v-if="certInfo.metadata" class="bg-white/60 p-1.5 rounded-md">
-                <h4 class="font-medium text-security mb-0.5 text-sm">Metadata</h4>
-                <div class="text-xs space-y-0.5">
-                  <p v-if="certInfo.metadata.uploadedBy">
-                    <span class="font-medium">Uploaded by:</span> {{ certInfo.metadata.uploadedBy }}
-                  </p>
-                  <p v-if="certInfo.metadata.uploadedAt">
-                    <span class="font-medium">Upload date:</span> {{ formatDate(certInfo.metadata.uploadedAt) }}
-                  </p>
-                  <p v-if="certInfo.metadata.notes">
-                    <span class="font-medium">Notes:</span> {{ certInfo.metadata.notes }}
-                  </p>
-                </div>
-              </div>
-              <!-- Re-validate button -->
-              <div class="flex justify-end mt-2">
-                <button @click="resetCertValidation" class="py-1 px-2 bg-security text-care rounded-md font-medium hover:bg-security/80 transition-colors text-sm">
-                  Validate Again
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          <div class="mt-2 flex justify-end">
-            <button @click="closeCertInfoModal" class="py-1 px-2 bg-currency text-modernity rounded-md font-medium hover:bg-currency/80 transition-colors text-sm">Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Confirmation Modal for Certificate Removal -->
-  <div v-if="showConfirmModal" class="fixed inset-0 certificate-modal-backdrop flex items-center justify-center z-[3000]">
-    <div class="bg-white rounded-lg shadow-lg p-4 max-w-md w-full animate-[modalFadeIn_0.2s_ease-out]">
-      <div class="flex justify-between items-center border-b border-security-30 pb-2 mb-3">
-        <h3 class="text-lg font-semibold text-security">Confirm Certificate Removal</h3>
-        <button @click="cancelCertificateRemoval" class="text-modernity-70 hover:text-modernity transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-x">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-      
-      <div class="py-2 text-security-80">
-        <p>Are you sure you want to remove the certificate <span class="font-semibold">'{{ pendingRemovalCert }}'</span>?</p>
-        <p class="mt-2 text-sm text-danger-dark">This action cannot be undone.</p>
-      </div>
-      
-      <div class="flex justify-end gap-2 mt-4 pt-2 border-t border-security-30">
-        <button @click="cancelCertificateRemoval" class="btn-secondary">
-          Cancel
-        </button>
-        <button @click="confirmCertificateRemoval" class="btn-danger">
-          Remove Certificate
-        </button>
-      </div>
     </div>
   </div>
 </template>
@@ -359,8 +210,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useOkta } from '@/composables/useOkta';
-import { useRuntimeConfig } from '#app';
-import CertificateManagement from './admin/CertificateManagement.vue';
 import SystemInfo from './admin/SystemInfo.vue';
 import PackageManagement from './admin/PackageManagement.vue';
 import ConfigManagement from './admin/ConfigManagement.vue';
@@ -392,98 +241,8 @@ const authSource = ref<'local' | 'okta' | null>(null);
 // --- OKTA ---
 const okta = useOkta() as any;
 
-// Helper to get CertificateManagement child component instance
-const getCertificateManagementComponent = () => {
-  // Vue 3: use $refs if set, or query children
-  // If CertificateManagement is not ref'd, fallback to DOM query
-  // (Assumes only one CertificateManagement instance is rendered)
-  if (process.client) {
-    const el = document.querySelector('[data-cert-management]');
-    if (el) {
-      // Use type assertion to access Vue's internal properties
-      const vueEl = el as any;
-      if (vueEl.__vueParentComponent && vueEl.__vueParentComponent.proxy) {
-        return vueEl.__vueParentComponent.proxy;
-      }
-    }
-  }
-  return null;
-};
-
-// --- CERTIFICATE INFO MODAL ---
-const showCertInfoModal = ref(false);
-const selectedCertName = ref('');
-const certPassword = ref('');
-const showPassword = ref(false);
-const certInfo = ref<any>(null);
-const certInfoError = ref<string | null>(null);
-const loadingCertInfo = ref(false);
-
-// --- CONFIRMATION MODAL ---
-const showConfirmModal = ref(false);
-const pendingRemovalCert = ref('');
-
 // --- IMPLEMENTED FUNCTIONS ---
 
-// Certificate removal handler
-const handleRemoveCertificate = (certName: string) => {
-  if (!certName) return;
-  
-  // Show confirmation modal instead of removing directly
-  pendingRemovalCert.value = certName;
-  showConfirmModal.value = true;
-};
-
-// Cancel certificate removal
-const cancelCertificateRemoval = () => {
-  showConfirmModal.value = false;
-  pendingRemovalCert.value = '';
-};
-
-// Confirm certificate removal
-function confirmCertificateRemoval() {
-  if (!pendingRemovalCert.value) return;
-  
-  loading.value = true;
-  showConfirmModal.value = false;
-  
-  fetch(`/api/certs?name=${encodeURIComponent(pendingRemovalCert.value)}`, {
-    method: 'DELETE',
-    headers: { 'Accept': 'application/json' }
-  })
-    .then(response => {
-      if (!response.ok) throw new Error(`Failed to remove certificate: ${response.status} ${response.statusText}`);
-      return response.json();
-    })
-    .then(data => {
-      if (data.success) {
-        // Optionally show a message or reload cert list
-        window.dispatchEvent(new CustomEvent('certificate_removed', { detail: { name: pendingRemovalCert.value } }));
-        
-        // Refresh certificate list if available
-        const certMgmt = getCertificateManagementComponent();
-        if (certMgmt && typeof certMgmt.fetchCerts === 'function') {
-          certMgmt.fetchCerts();
-        }
-      } else {
-        errorMessage.value = data.error || 'Failed to remove certificate.';
-      }
-    })
-    .catch(err => {
-      errorMessage.value = err.message || 'Error removing certificate.';
-    })
-    .finally(() => {
-      loading.value = false;
-      pendingRemovalCert.value = ''; // Clear pending cert
-    });
-};
-
-// Reset certificate validation state for re-validation
-function resetCertValidation() {
-  certInfo.value = null;
-  certPassword.value = '';
-  certInfoError.value = null;
-}
 function attemptLocalLogin() {
   if (!enteredPassword.value) {
     localAuthError.value = "Password is required";
@@ -536,8 +295,8 @@ function attemptLocalLogin() {
       
       // Store authentication in localStorage with proper expiry
       try {
-        localStorage.setItem('signfile_local_admin_auth', 'true');
-        localStorage.setItem('signfile_local_admin_expiry', new Date(Date.now() + sessionDuration.value * 24 * 60 * 60 * 1000).toISOString());
+        localStorage.setItem('securityconsole_local_admin_auth', 'true');
+        localStorage.setItem('securityconsole_local_admin_expiry', new Date(Date.now() + sessionDuration.value * 24 * 60 * 60 * 1000).toISOString());
         
         // Set auth source for user rights tracking
         authSource.value = 'local';
@@ -547,7 +306,7 @@ function attemptLocalLogin() {
           // Create a local admin user record
           const localAdminUser = {
             name: 'Local Administrator',
-            email: 'local.admin@signfile.app',
+            email: 'local.admin@securityconsole.app',
             isLocalAdmin: true
           };
           userAdminRef.value.recordUserAuthentication(localAdminUser)
@@ -836,8 +595,8 @@ function logoutLocalAdmin() {
   authSource.value = null;
   
   try {
-    localStorage.removeItem('signfile_local_admin_auth');
-    localStorage.removeItem('signfile_local_admin_expiry');
+    localStorage.removeItem('securityconsole_local_admin_auth');
+    localStorage.removeItem('securityconsole_local_admin_expiry');
   } catch (err) {
     console.error('[Admin.vue] Error removing auth data:', err);
   }
@@ -884,58 +643,6 @@ function regenerateAdminPassword() {
       throw new Error(data.error || 'Failed to regenerate admin password');
     }
   });
-}
-
-function closeCertInfoModal() { 
-  showCertInfoModal.value = false;
-  certInfo.value = null;
-  certPassword.value = '';
-  certInfoError.value = null;
-}
-
-function formatDate(val: any) { 
-  if (!val) return '';
-  try {
-    return new Date(val).toLocaleString();
-  } catch (e) {
-    return String(val);
-  }
-}
-
-function fetchCertificateInfo() {
-  if (!certPassword.value) {
-    certInfoError.value = "Password is required";
-    return;
-  }
-  
-  loadingCertInfo.value = true;
-  certInfoError.value = null;
-  
-  // Simulating API request
-  setTimeout(() => {
-    console.log('Fetching certificate info for:', selectedCertName.value);
-    
-    // Mock certificate info
-    certInfo.value = {
-      subject: "CN=Example Certificate, O=Organization",
-      issuer: "CN=Certificate Authority",
-      validFrom: new Date(),
-      validTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-      serialNumber: "00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF",
-      ca: false,
-      metadata: {
-        uploadedBy: "admin@example.com",
-        uploadedAt: new Date(),
-        notes: "Sample certificate"
-      }
-    };
-    
-    loadingCertInfo.value = false;
-  }, 1200);
-}
-
-function togglePasswordVisibility() { 
-  showPassword.value = !showPassword.value; 
 }
 
 // --- SAFE NAVIGATION FUNCTION ---
@@ -1115,7 +822,7 @@ watch([isAuthenticated, isLocalAdminAuthenticated], async ([newAuth, newLocalAut
         // Create a local admin user record
         const localAdminUser = {
           name: 'Local Administrator',
-          email: 'local.admin@signfile.app',
+          email: 'local.admin@securityconsole.app',
           isLocalAdmin: true
         };
         await userAdminRef.value.recordUserAuthentication(localAdminUser);
@@ -1185,15 +892,15 @@ onMounted(() => {
         
         // Check local admin authentication
         if (window.localStorage) {
-          const localAuth = localStorage.getItem('signfile_local_admin_auth');
-          const expiry = localStorage.getItem('signfile_local_admin_expiry');
+          const localAuth = localStorage.getItem('securityconsole_local_admin_auth');
+          const expiry = localStorage.getItem('securityconsole_local_admin_expiry');
           
           if (localAuth === 'true' && expiry && new Date(expiry) > new Date()) {
             isLocalAdminAuthenticated.value = true;
             authSource.value = 'local';
           } else if (localAuth === 'true') {
-            localStorage.removeItem('signfile_local_admin_auth');
-            localStorage.removeItem('signfile_local_admin_expiry');
+            localStorage.removeItem('securityconsole_local_admin_auth');
+            localStorage.removeItem('securityconsole_local_admin_expiry');
           }
         }
       }

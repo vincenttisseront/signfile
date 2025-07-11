@@ -166,7 +166,7 @@ async function loadAdminUsers() {
       adminUsers.value = data.users
       // Also store in localStorage as fallback
       if (typeof window !== 'undefined') {
-        localStorage.setItem('signfile_admin_users', JSON.stringify(data.users))
+        localStorage.setItem('securityconsole_admin_users', JSON.stringify(data.users))
       }
       return
     }
@@ -177,7 +177,7 @@ async function loadAdminUsers() {
   // Fallback to localStorage
   try {
     if (typeof window !== 'undefined') {
-      const storedAdminUsers = localStorage.getItem('signfile_admin_users')
+      const storedAdminUsers = localStorage.getItem('securityconsole_admin_users')
       if (storedAdminUsers) {
         adminUsers.value = JSON.parse(storedAdminUsers)
         // Try to update the persistent storage
@@ -212,7 +212,7 @@ async function saveAdminUsers() {
     
     // Also save to localStorage as fallback
     if (typeof window !== 'undefined') {
-      localStorage.setItem('signfile_admin_users', JSON.stringify(adminUsers.value))
+      localStorage.setItem('securityconsole_admin_users', JSON.stringify(adminUsers.value))
     }
   } catch (error) {
     console.error('[UserAdmin.vue] Error saving admin users to persistent storage:', error)
@@ -220,7 +220,7 @@ async function saveAdminUsers() {
     // Fallback to localStorage only
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem('signfile_admin_users', JSON.stringify(adminUsers.value))
+        localStorage.setItem('securityconsole_admin_users', JSON.stringify(adminUsers.value))
       } catch (localError) {
         console.error('[UserAdmin.vue] Error saving admin users to localStorage:', localError)
       }
@@ -251,7 +251,7 @@ async function loadAuthenticatedUsers() {
       
       // Also store in localStorage as fallback
       if (typeof window !== 'undefined') {
-        localStorage.setItem('signfile_authenticated_users', JSON.stringify(data.users))
+        localStorage.setItem('securityconsole_authenticated_users', JSON.stringify(data.users))
         console.log('[UserAdmin.vue] Updated localStorage with authenticated users from API')
       }
       return
@@ -266,7 +266,7 @@ async function loadAuthenticatedUsers() {
   try {
     if (typeof window !== 'undefined') {
       console.log('[UserAdmin.vue] Attempting to load authenticated users from localStorage')
-      const storedAuthUsers = localStorage.getItem('signfile_authenticated_users')
+      const storedAuthUsers = localStorage.getItem('securityconsole_authenticated_users')
       
       if (storedAuthUsers) {
         try {
@@ -330,7 +330,7 @@ async function saveAuthenticatedUsers() {
     
     // Also save to localStorage as fallback
     if (typeof window !== 'undefined') {
-      localStorage.setItem('signfile_authenticated_users', JSON.stringify(authenticatedUsers.value))
+      localStorage.setItem('securityconsole_authenticated_users', JSON.stringify(authenticatedUsers.value))
       console.log('[UserAdmin.vue] Saved authenticated users to localStorage as fallback')
     }
   } catch (error) {
@@ -339,7 +339,7 @@ async function saveAuthenticatedUsers() {
     // Fallback to localStorage only
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem('signfile_authenticated_users', JSON.stringify(authenticatedUsers.value))
+        localStorage.setItem('securityconsole_authenticated_users', JSON.stringify(authenticatedUsers.value))
         console.log('[UserAdmin.vue] Saved authenticated users to localStorage after API failure')
       } catch (localError) {
         console.error('[UserAdmin.vue] Error saving authenticated users to localStorage:', localError)
@@ -474,7 +474,7 @@ async function recordUserAuthentication(userData: any) {
     // Still try to save to localStorage as a fallback
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem('signfile_authenticated_users', JSON.stringify(authenticatedUsers.value))
+        localStorage.setItem('securityconsole_authenticated_users', JSON.stringify(authenticatedUsers.value))
         console.log('[UserAdmin.vue] Saved to localStorage as fallback after API failure')
       } catch (localStorageError) {
         console.error('[UserAdmin.vue] Also failed to save to localStorage:', localStorageError)

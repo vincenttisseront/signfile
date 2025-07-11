@@ -2,6 +2,8 @@
 import { OktaAuth } from '@okta/okta-auth-js'
 
 console.log('[okta.client.ts] Initializing Okta plugin...')
+console.log(`[okta.client.ts] typeof atob: ${typeof atob}`)
+console.log(`[okta.client.ts] process.client: ${typeof process !== 'undefined' ? process.client : 'undefined'}`)
 
 // Declare global types for Okta
 declare global {
@@ -169,7 +171,7 @@ export default defineNuxtPlugin(() => {
         const keysToCheck = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (key && key.startsWith('okta-') && !key.includes('signfile') && 
+          if (key && key.startsWith('okta-') && !key.includes('securityconsole') && 
               !key.includes('pkce-storage')) {
             keysToCheck.push(key);
           }
@@ -203,7 +205,7 @@ export default defineNuxtPlugin(() => {
     }
 
     // Create a consistent state key that will be used for storing PKCE state
-    const stateKey = 'signfile-auth-state';
+    const stateKey = 'securityconsole-auth-state';
 
     const oktaAuth = new OktaAuth({
       issuer: String(config.public.oktaIssuer),
@@ -220,7 +222,7 @@ export default defineNuxtPlugin(() => {
       tokenManager: {
         autoRenew: true,
         expireEarlySeconds: 120,
-        storageKey: 'signfile_okta_tokens',
+        storageKey: 'securityconsole_okta_tokens',
         storage: 'localStorage',
         secure: false
       }

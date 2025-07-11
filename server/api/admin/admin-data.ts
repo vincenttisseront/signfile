@@ -2,7 +2,7 @@ import fs from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
 import { defineEventHandler, readBody } from 'h3'
-import logger from '../utils/logger'
+import logger from './../../utils/logger'
 
 export default defineEventHandler(async (event: any) => {
   // Get the data directory from environment

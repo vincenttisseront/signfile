@@ -3,7 +3,7 @@
    
     <!-- Sign file content -->
     <div class="mt-4">
-      <SignFile />
+      <SecurityConsole />
     </div>
 
   </div>
@@ -11,7 +11,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import SignFile from '~/components/SignFile.vue';
+import SecurityConsole from '~/components/SecurityConsole.vue';
 import { useLayout } from '~/composables/useLayout';
 
 // Use our layout composable to get responsive behavior

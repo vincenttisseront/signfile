@@ -2,28 +2,17 @@
 FROM harbor.ibanfirst.tech/base/node@sha256:048ed02c5fd52e86fda6fbd2f6a76cf0d4492fd6c6fee9e2c463ed5108da0e34 AS base
 WORKDIR /app
 
-# ---------- JSIGN LAYER ----------
-FROM base AS jsign
-ARG JSIGN_VERSION=7.1
-RUN apt-get update -qq && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    wget ca-certificates openjdk-17-jre-headless && \
-    wget -O /usr/local/bin/jsign-${JSIGN_VERSION}.jar https://github.com/ebourg/jsign/releases/download/${JSIGN_VERSION}/jsign-${JSIGN_VERSION}.jar && \
-    ln -sf /usr/local/bin/jsign-${JSIGN_VERSION}.jar /usr/local/bin/jsign.jar && \
-    echo '#!/bin/sh\nexec java -jar /usr/local/bin/jsign.jar "$@"' > /usr/local/bin/jsign && \
-    chmod +x /usr/local/bin/jsign && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
 # ---------- RUNTIME DEPENDENCIES ----------
 FROM base AS runtime-deps
 RUN apt-get update -qq && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    ca-certificates openjdk-17-jre-headless openssl && \
+    ca-certificates openssl && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # ---------- LIBRARY LAYER (node_modules) ----------
 FROM base AS deps
 COPY package.json package-lock.json* ./ 
+COPY entrypoint.sh /app/entrypoint.sh
 COPY .env .env
 RUN test -s .env || (echo 'ERROR: .env file missing or empty!' && exit 1)
 RUN npm ci --prefer-offline --no-audit
@@ -31,8 +20,6 @@ RUN npm ci --prefer-offline --no-audit
 # ---------- APP BUILD LAYER ----------
 FROM deps AS build
 COPY . .
-COPY --from=jsign /usr/local/bin/jsign /usr/local/bin/
-COPY --from=jsign /usr/local/bin/jsign.jar /usr/local/bin/
 RUN chmod +x node_modules/.bin/nuxt && \
     chmod +x node_modules/@esbuild/linux-x64/bin/esbuild
 ENV NODE_ENV=production
@@ -45,49 +32,46 @@ WORKDIR /app
 
 # Create app user early (before COPY --chown) - check if GID/UID exists first
 RUN if getent group 1000 >/dev/null; then \
-      groupadd signfile; \
+      groupadd securityconsole; \
     else \
-      groupadd -g 1000 signfile || groupadd signfile; \
+      groupadd -g 1000 securityconsole || groupadd securityconsole; \
     fi && \
     if getent passwd 1000 >/dev/null; then \
-      useradd -g signfile -d /app -m -s /bin/sh signfile; \
+      useradd -g securityconsole -d /app -m -s /bin/sh securityconsole; \
     else \
-      useradd -u 1000 -g signfile -d /app -m -s /bin/sh signfile || useradd -g signfile -d /app -m -s /bin/sh signfile; \
+      useradd -u 1000 -g securityconsole -d /app -m -s /bin/sh securityconsole || useradd -g securityconsole -d /app -m -s /bin/sh securityconsole; \
     fi
 
 # App runtime files with correct ownership
-COPY --chown=signfile:signfile --from=build /app/.output/ ./.output/
-COPY --chown=signfile:signfile --from=build /app/composables/ ./composables/
-COPY --chown=signfile:signfile --from=deps /app/node_modules/ ./node_modules/
-COPY --chown=signfile:signfile --from=deps /app/package*.json ./
-COPY --chown=signfile:signfile --from=deps /app/.env ./.env
-COPY --chown=signfile:signfile --from=jsign /usr/local/bin/jsign /usr/local/bin/
-COPY --chown=signfile:signfile --from=jsign /usr/local/bin/jsign.jar /usr/local/bin/
+COPY --chown=securityconsole:securityconsole --from=build /app/.output/ ./.output/
+COPY --chown=securityconsole:securityconsole --from=build /app/composables/ ./composables/
+COPY --chown=securityconsole:securityconsole --from=deps /app/node_modules/ ./node_modules/
+COPY --chown=securityconsole:securityconsole --from=deps /app/package*.json ./
+COPY --chown=securityconsole:securityconsole --from=deps /app/.env ./.env
 
-# Create writable directories and ensure proper ownership
-# Create each directory and set permissions separately for better error isolation
 RUN set -e; \
-    mkdir -p /app/secure-storage/certs; \
     mkdir -p /app/temp; \
     mkdir -p /app/data; \
     mkdir -p /app/auth-data; \
-    # Ensure signfile user owns app directories
-    chown -R signfile:signfile /app; \
-    # Set relaxed permissions on data directories for compatibility
-    chmod -R 755 /app/secure-storage; \
+    chown -R securityconsole:securityconsole /app; \
     chmod -R 755 /app/temp; \
     chmod -R 755 /app/data; \
     chmod -R 755 /app/auth-data; \
-    # Special write permissions for key directories
-    chmod 777 /app/secure-storage/certs; \
     chmod 777 /app/temp; \
     chmod 777 /app/data; \
     chmod 777 /app/auth-data
 
-# Copy startup scripts from workspace to container
-COPY --chown=signfile:signfile start.sh /app/start.sh
-COPY --chown=signfile:signfile entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/start.sh /app/entrypoint.sh
+
+# Copy startup scripts from build context to runtime layer
+COPY --chown=securityconsole:securityconsole --from=build /app/start.sh /app/start.sh
+COPY --chown=securityconsole:securityconsole --from=build /app/entrypoint.sh /app/entrypoint.sh
+
+# Fix Windows line endings if present and ensure executable
+RUN [ -f /app/start.sh ] && sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh || echo '/app/start.sh not found'; \
+    [ -f /app/entrypoint.sh ] && sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh || echo '/app/entrypoint.sh not found';
+
+# Inject atob polyfill at the top of Nuxt SSR entrypoint
+RUN sed -i '1i if (typeof atob === "undefined") { global.atob = str => Buffer.from(str, "base64").toString("binary"); }' /app/.output/server/index.mjs
 
 # Set env vars
 ENV NODE_ENV=production
@@ -96,20 +80,11 @@ ENV NITRO_HOST=0.0.0.0
 ENV JSIGN_VERSION=7.1
 ENV LOG_LEVEL=info
 
-# Set directories and paths (non-sensitive)
-ENV CERTS_DIR=/app/secure-storage/certs
 ENV TEMP_DIR=/app/temp
 ENV DATA_DIR=/app/data
-ENV SECURE_STORAGE_DIR=/app/secure-storage
-
-# Define file paths (marked as non-secrets as they're just paths, not content)
-# DOCKER_IGNORE_PATHS=true
-ENV ADMIN_PASSWORD_FILE=/app/secure-storage/admin_password.txt
-ENV ADMIN_USERS_FILE=/app/data/admin_users.json
 ENV AUTHENTICATED_USERS_FILE=/app/auth-data/authenticated_users.json
-# DOCKER_IGNORE_PATHS=false
 
-USER signfile
+USER securityconsole
 
 EXPOSE 3000
 

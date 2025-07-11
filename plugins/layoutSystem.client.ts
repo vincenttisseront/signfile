@@ -1,4 +1,4 @@
-// Layout system plugin for SignFile
+// Layout system plugin for securityconsole
 // This plugin ensures consistent dimensions and spacing across the application
 import { defineNuxtPlugin } from '#app'
 

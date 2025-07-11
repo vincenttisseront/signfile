@@ -1,4 +1,4 @@
-/* SignFile - Main CSS file */
+/* securityconsole - Main CSS file */
 
 @tailwind base;
 @tailwind components;
@@ -276,22 +276,22 @@ html, body {
 }
 
 .sidebar {
-  background-color: var(--color-care);
-  width: var(--sidebar-width);
-  min-width: var(--sidebar-width);
-  height: 100vh;
-  position: fixed;
-  left: 0;
-  top: 0;
-  padding: 1rem 0.75rem;
-  border-right: 1px solid rgba(143, 64, 255, 0.1);
-  overflow-x: hidden;
-  overflow-y: auto; /* Allow scrolling for many menu items */
-  transition: all 0.3s ease;
-  z-index: 100;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
+    background-color: var(--color-care);
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    padding: 1rem 0.75rem;
+    border-right: 1px solid rgba(143, 64, 255, 0.1);
+    overflow-x: hidden;
+    overflow-y: auto; /* Allow scrolling for many menu items */
+    transition: all 0.3s ease;
+    z-index: 100;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
 }
 
 /* Admin content container */
@@ -551,9 +551,9 @@ html, body {
 
 /* Main content positioning */
 .main-content {
-  margin-left: var(--sidebar-width);
-  width: calc(100% - var(--sidebar-width));
-  transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out;
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+    transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out;
 }
 
 /* Sidebar logo and branding */

@@ -1,43 +1,9 @@
 #!/bin/sh
 
-echo "[STARTUP] SignFile container starting up..."
+echo "[STARTUP] securityconsole container starting up..."
 echo "[STARTUP] Creating required directories..."
-mkdir -p "$CERTS_DIR" "$TEMP_DIR" "$DATA_DIR" /app/auth-data "$SECURE_STORAGE_DIR" 2>/dev/null || echo "[STARTUP] Warning: Error creating directories"
-chmod -R 777 "$CERTS_DIR" "$TEMP_DIR" "$DATA_DIR" /app/auth-data "$SECURE_STORAGE_DIR" 2>/dev/null || echo "[STARTUP] Warning: Error setting permissions"
-
-# Generate admin password if it does not exist
-if [ ! -f "$ADMIN_PASSWORD_FILE" ]; then
-  echo "[STARTUP] Admin password file not found, generating new password..."
-  # Generate random password (16 chars of alphanumeric)
-  ADMIN_PWD=$(cat /dev/urandom | tr -dc "a-zA-Z0-9" | fold -w 16 | head -n 1)
-  echo "$ADMIN_PWD" > "$ADMIN_PASSWORD_FILE"
-  echo "[STARTUP] Generated new admin password: $ADMIN_PWD"
-  chmod 600 "$ADMIN_PASSWORD_FILE" 2>/dev/null || echo "[STARTUP] Warning: Could not set admin password file permissions"
-else
-  echo "[STARTUP] Using existing admin password file"
-fi
-
-# Initialize empty admin users file if it does not exist
-if [ ! -f "$ADMIN_USERS_FILE" ]; then
-  echo "[STARTUP] Creating admin users file..."
-  echo "[]" > "$ADMIN_USERS_FILE"
-  echo "[STARTUP] Initialized empty admin users file"
-else
-  echo "[STARTUP] Using existing admin users file"
-fi
-
-# Initialize empty authenticated users file if it does not exist
-if [ ! -f "$AUTHENTICATED_USERS_FILE" ]; then
-  echo "[STARTUP] Creating authenticated users file..."
-  # Ensure the directory exists
-  mkdir -p "$(dirname "$AUTHENTICATED_USERS_FILE")" 2>/dev/null || echo "[STARTUP] Warning: Error creating auth directory"
-  chmod 777 "$(dirname "$AUTHENTICATED_USERS_FILE")" 2>/dev/null || echo "[STARTUP] Warning: Error setting auth directory permissions"
-  echo "[]" > "$AUTHENTICATED_USERS_FILE"
-  echo "[STARTUP] Initialized empty authenticated users file at $AUTHENTICATED_USERS_FILE"
-  chmod 666 "$AUTHENTICATED_USERS_FILE" 2>/dev/null || echo "[STARTUP] Warning: Error setting auth file permissions"
-else
-  echo "[STARTUP] Using existing authenticated users file"
-fi
+mkdir -p "$TEMP_DIR" "$DATA_DIR" /app/auth-data 2>/dev/null || echo "[STARTUP] Warning: Error creating directories"
+chmod -R 777 "$TEMP_DIR" "$DATA_DIR" /app/auth-data 2>/dev/null || echo "[STARTUP] Warning: Error setting permissions"
 
 # Check if jsign is available
 if command -v jsign >/dev/null 2>&1; then

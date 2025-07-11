@@ -59,9 +59,6 @@ function isPrerelease(version: string): boolean {
   return /\b(alpha|beta|rc|preview|pre|dev|experimental|nightly|unstable|snapshot)\b|-alpha\.|-beta\.|-pre\.|-rc\.|[.-]dev[0-9]|[.-]canary|\+[0-9a-f]{7}/i.test(version)
 }
 
-function getJsignVersion(): Promise<string> {
-  return Promise.resolve(process.env.JSIGN_VERSION || 'Unavailable')
-}
 
 async function getOpenSSLVersion(): Promise<{ current: string, candidate: string }> {
   return new Promise((resolve) => {
@@ -119,7 +116,7 @@ async function getLatestGithubRelease(repo: string): Promise<string> {
     const options = {
       hostname: 'api.github.com',
       path: `/repos/${repo}/releases/latest`,
-      headers: { 'User-Agent': 'SignFile-App' }
+      headers: { 'User-Agent': 'SecurityConsole-App' }
     }
     https.get(options, res => {
       let data = ''
@@ -216,7 +213,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
         https.get({
           hostname: 'registry.npmjs.org',
           path: `/${name.replace(/^@/, '%40')}`,
-          headers: { 'User-Agent': 'SignFile-App' }
+          headers: { 'User-Agent': 'SecurityConsole-App' }
         }, res => {
           let data = ''
           res.on('data', chunk => (data += chunk))
@@ -254,7 +251,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
           https.get({
             hostname: 'api.github.com',
             path: `/repos/${repo}/releases/latest`,
-            headers: { 'User-Agent': 'SignFile-App' }
+            headers: { 'User-Agent': 'SecurityConsole-App' }
           }, res => {
             let data = ''
             res.on('data', chunk => (data += chunk))
@@ -276,7 +273,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
             https.get({
               hostname: 'registry.npmjs.org',
               path: `/${name.replace(/^@/, '%40')}/latest`,
-              headers: { 'User-Agent': 'SignFile-App' }
+              headers: { 'User-Agent': 'SecurityConsole-App' }
             }, res => {
               let data = ''
               res.on('data', chunk => (data += chunk))
@@ -297,7 +294,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
             https.get({
               hostname: 'registry.npmjs.org',
               path: `/${name.replace(/^@/, '%40')}`,
-              headers: { 'User-Agent': 'SignFile-App' }
+              headers: { 'User-Agent': 'SecurityConsole-App' }
             }, res => {
               let data = ''
               res.on('data', chunk => (data += chunk))
@@ -317,7 +314,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
           https.get({
             hostname: 'registry.npmjs.org',
             path: `/${name.replace(/^@/, '%40')}/latest`,
-            headers: { 'User-Agent': 'SignFile-App' }
+            headers: { 'User-Agent': 'SecurityConsole-App' }
           }, res => {
             let data = ''
             res.on('data', chunk => (data += chunk))
@@ -340,7 +337,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
         https.get({
           hostname: 'registry.npmjs.org',
           path: `/${name.replace(/^@/, '%40')}/latest`,
-          headers: { 'User-Agent': 'SignFile-App' }
+          headers: { 'User-Agent': 'SecurityConsole-App' }
         }, res => {
           let data = ''
           res.on('data', chunk => (data += chunk))
@@ -363,7 +360,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
         https.get({
           hostname: 'registry.npmjs.org',
           path: `/${name.replace(/^@/, '%40')}`,
-          headers: { 'User-Agent': 'SignFile-App' }
+          headers: { 'User-Agent': 'SecurityConsole-App' }
         }, res => {
           let data = ''
           res.on('data', chunk => (data += chunk))
@@ -505,38 +502,28 @@ async function getNpmPackages(includePrerelease: boolean = false) {
 }
 
 // --- Final API Handler ---
-export default defineEventHandler(async (event) => {
-  // Check if we should include pre-releases
-  const query = getQuery(event)
-  const includePrerelease = query.includePrerelease === 'true'
-  
-  const [jsign, opensslInfo, openjdk, baseImage, npmPackages] = await Promise.all([
-    getJsignVersion(),
-    getOpenSSLVersion(),
-    getOpenJDKVersion(),
-    getBaseImage(),
-    getNpmPackages(includePrerelease)
-  ])
-
-  const opensslOutdated = opensslInfo.current !== 'Unavailable'
-    && opensslInfo.candidate !== 'Unavailable'
-    && opensslInfo.current !== opensslInfo.candidate
-
-  return {
-    baseImage,
+function defineEventHandler(
+  handler: (event: any) => Promise<{
+    baseImage: string;
     versions: {
-      jsign: {
-        current: jsign,
-      },
-      openssl: {
-        current: opensslInfo.current,
-        latest: opensslInfo.candidate,
-        outdated: opensslOutdated
-      },
-      openjdk: {
-        current: openjdk,
-      }
-    },
-    npmPackages
-  }
-})
+      openssl: { current: string; latest: string; outdated: boolean };
+      openjdk: { current: string };
+    };
+    npmPackages: {
+      name: string;
+      current: string;
+      latest: string;
+      latestReleaseDate: string;
+      outdated: boolean;
+      isPrerelease: boolean;
+      repository: any;
+    }[];
+  }>
+) {
+  // This is a Nuxt/Nitro event handler wrapper.
+  // In a real Nuxt/Nitro app, this would register the handler for API routes.
+  // Here, just return the handler for framework to use.
+  return handler;
+}
+
+

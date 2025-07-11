@@ -1,0 +1,41 @@
+version: '3.8'
+services:
+  securityconsole:
+    build: .
+    container_name: securityconsole
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - mariadb
+
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=securityconsole
+      - MYSQL_USER=securityuser
+      - MYSQL_PASSWORD=securitypass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mariadb
+      - PMA_USER=securityuser
+      - PMA_PASSWORD=securitypass
+    depends_on:
+      - mariadb
+
+volumes:
+  db_data:

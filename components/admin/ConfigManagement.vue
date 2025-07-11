@@ -226,7 +226,7 @@ export default {
     loadOktaConfig() {
       // Try to load config from local storage
       try {
-        const storedConfig = localStorage.getItem('signfile_okta_config');
+        const storedConfig = localStorage.getItem('securityconsole_okta_config');
         if (storedConfig) {
           console.log('[ConfigManagement] Loading Okta config from localStorage');
           this.oktaConfig = JSON.parse(storedConfig);
@@ -248,7 +248,7 @@ export default {
     },
     
     resetOktaConfig() {
-      localStorage.removeItem('signfile_okta_config');
+      localStorage.removeItem('securityconsole_okta_config');
       this.loadOktaConfig();
       this.configSaveSuccess = true;
       this.configSaveError = null;
@@ -280,7 +280,7 @@ export default {
         }
         
         // Save to local storage
-        localStorage.setItem('signfile_okta_config', JSON.stringify(this.oktaConfig));
+        localStorage.setItem('securityconsole_okta_config', JSON.stringify(this.oktaConfig));
         console.log('[ConfigManagement] Saved Okta config to localStorage');
         
         this.configSaveSuccess = true;

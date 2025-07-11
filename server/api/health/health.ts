@@ -4,7 +4,7 @@
  */
 import { defineEventHandler } from 'h3'
 import os from 'os'
-import { logHealthCheck } from '../utils/startup-logger'
+import { logHealthCheck } from '../../utils/startup-logger'
 
 export default defineEventHandler(() => {
   try {
@@ -19,7 +19,7 @@ export default defineEventHandler(() => {
     const hostname = os.hostname()
     const serverInfo = {
       devUrl: 'http://localhost:3000',
-      prodUrl: 'https://signfile.ibanfirst.lan'
+      prodUrl: 'https://securityconsole.ibanfirst.lan'
     }
     
     return {

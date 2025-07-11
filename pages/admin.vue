@@ -17,7 +17,7 @@ const isLocalAdminAuthenticated = ref(false);
 // Check if local admin is authenticated
 const checkLocalAdmin = () => {
   if (typeof window !== 'undefined') {
-    isLocalAdminAuthenticated.value = localStorage.getItem('signfile_local_admin_auth') === 'true';
+    isLocalAdminAuthenticated.value = localStorage.getItem('securityconsole_local_admin_auth') === 'true';
   }
 };
 
@@ -61,14 +61,14 @@ onMounted(async () => {
   }
   
   // Watch for authentication changes
-  window.addEventListener('signfile_auth_change', () => {
+  window.addEventListener('securityconsole_auth_change', () => {
     checkLocalAdmin();
   });
 });
 
 // Clean up event listeners when component is destroyed
 onBeforeUnmount(() => {
-  window.removeEventListener('signfile_auth_change', checkLocalAdmin);
+  window.removeEventListener('securityconsole_auth_change', checkLocalAdmin);
 });
 </script>
 

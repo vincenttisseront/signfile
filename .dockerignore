@@ -19,6 +19,8 @@ assets/css/tailwind.compiled.css
 .env.*
 !.env.example
 
+
+
 # Editor directories and files
 .idea
 .vscode
@@ -28,6 +30,8 @@ assets/css/tailwind.compiled.css
 *.sln
 *.sw?
 .DS_Store
+.git
+.gitignore
 
 # Temp files
 *~

@@ -1,13 +1,15 @@
+
 // Force rebuild on each Docker build with this timestamp
 const BUILD_TIMESTAMP = Date.now().toString();
 
 export default defineNuxtConfig({
-  modules: [
-    '@nuxtjs/tailwindcss'
-  ],
   plugins: [
+    // ...other plugins
     // Fix for Okta authentication issues
     '~/plugins/okta-fixes.client.js'
+  ],
+  modules: [
+    '@nuxtjs/tailwindcss'
   ],
   tailwindcss: {
     configPath: '~/tailwind.config.ts',

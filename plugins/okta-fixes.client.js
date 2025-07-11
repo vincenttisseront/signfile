@@ -5,6 +5,8 @@
 export default defineNuxtPlugin(() => {
   // Plugin functionality
   console.log('[okta-fixes.client.js] Initializing Okta fixes plugin');
+  console.log(`[okta-fixes.client.js] typeof atob: ${typeof atob}`);
+  console.log(`[okta-fixes.client.js] process.client: ${typeof process !== 'undefined' ? process.client : 'undefined'}`);
 });
 
 if (typeof window !== 'undefined') {

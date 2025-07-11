@@ -13,7 +13,7 @@ export function logSystemInfo() {
   try {
     // Log basic system information
     logger.info('startup', '======================================================')
-    logger.info('startup', '🚀 SignFile Server Starting')
+    logger.info('startup', '🚀 SecurityConsole Server Starting')
     logger.info('startup', '======================================================')
     logger.info('startup', `Hostname: ${os.hostname()}`)
     logger.info('startup', `Platform: ${os.platform()} ${os.release()}`)
@@ -48,41 +48,7 @@ export function logSystemInfo() {
     logger.info('startup', '======================================================')
     logger.info('startup', 'Directory Structure:')
     
-    // First, log the configuration without file system access
-    logger.info('startup', `  CERTS_DIR: ${process.env.CERTS_DIR || '/app/secure-storage/certs'}`)
-    logger.info('startup', `  TEMP_DIR: ${process.env.TEMP_DIR || '/app/temp'}`)
-    logger.info('startup', `  DATA_DIR: ${process.env.DATA_DIR || '/app/data'}`)
-    logger.info('startup', `  SECURE_STORAGE_DIR: ${process.env.SECURE_STORAGE_DIR || '/app/secure-storage'}`)
-    logger.info('startup', `  Working directory: ${process.cwd()}`)
-    
-    // Also write to a file that will be available even if the container crashes
-    try {
-      const fs = require('fs')
-      // Use platform-appropriate directory - default to /tmp which works in both Windows and Linux
-      const debugDir = os.platform() === 'win32' ? 'C:/temp/startup-debug' : '/tmp/startup-debug'
-      const logFile = `${debugDir}/node-startup.log`
-      
-      // Create directory if it doesn't exist
-      try { fs.mkdirSync(debugDir, { recursive: true }) } catch (e) {}
-      
-      // Log to file
-      const timestamp = new Date().toISOString()
-      const logContent = `
-${timestamp} - Node.js startup log
-Working directory: ${process.cwd()}
-Platform: ${os.platform()} ${os.release()}
-Hostname: ${os.hostname()}
-CERTS_DIR: ${process.env.CERTS_DIR || '/app/secure-storage/certs'}
-TEMP_DIR: ${process.env.TEMP_DIR || '/app/temp'}
-DATA_DIR: ${process.env.DATA_DIR || '/app/data'}
-SECURE_STORAGE_DIR: ${process.env.SECURE_STORAGE_DIR || '/app/secure-storage'}
-NODE_ENV: ${process.env.NODE_ENV}
-LOG_LEVEL: ${process.env.LOG_LEVEL}
-`
-      fs.writeFileSync(logFile, logContent, { flag: 'a' })
-    } catch (fsErr) {
-      // Silently ignore filesystem errors - we don't want logging to crash the app
-    }
+    // Certificate-related configuration logging removed
     
     logger.info('startup', '======================================================')
     
