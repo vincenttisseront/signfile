@@ -145,61 +145,7 @@ export default defineEventHandler(async (event) => {
       const ext = path.extname(originalName).toLowerCase();
       const baseName = originalName.slice(0, -ext.length);
 
-      if (ext === '.ps1') {
-        // PowerShell script: sign using jsign (Authenticode)
-        const signedScriptPath = path.join(tmpdir(), `signed-${randomUUID()}.ps1`);
-
-        // Copy script to temp file for signing
-        await fs.copyFile(scriptPath, signedScriptPath);
-
-        // Build jsign arguments (no --output)
-        const jsignArgs = [
-          '--storetype', 'PKCS12',
-          '--keystore', certPath,
-          '--storepass', password,
-          '--tsaurl', 'http://timestamp.digicert.com',
-          '--alg', 'SHA-256',
-          '--name', 'Signed Script',
-          signedScriptPath
-        ];
-
-        logger.debug('sign.post', 'Executing jsign:', ['jsign', ...jsignArgs].join(' '));
-        await new Promise((resolve, reject) => {
-          const jsign = spawn('jsign', jsignArgs, { windowsHide: true });
-          let stderr = '';
-          jsign.stderr.on('data', (data) => { stderr += data.toString(); });
-          jsign.stdout.on('data', (data) => { logger.debug('jsign', data.toString().trim()); });
-          jsign.on('close', (code) => {
-            if (code === 0) {
-              logger.info('sign.post', 'jsign completed successfully.');
-              resolve(null);
-            } else {
-              logger.error('sign.post', 'jsign failed:', stderr);
-              reject(new Error(stderr || 'Failed to sign PowerShell script with jsign'));
-            }
-          });
-          jsign.on('error', (err) => {
-            logger.error('sign.post', 'jsign spawn error:', err);
-            reject(err);
-          });
-        });
-
-        // Return the signed script file
-        logger.debug('sign.post', 'Reading signed script:', signedScriptPath);
-        const signedScript = await fs.readFile(signedScriptPath);
-        const signedFilename = `${baseName}_signed${ext}`;
-        event.node.res.setHeader('Content-Type', 'application/octet-stream');
-        event.node.res.setHeader('Content-Disposition', `attachment; filename="${signedFilename}"`);
-        event.node.res.end(signedScript);
-
-        // Remove both the signed and original script files
-        await fs.rm(signedScriptPath, { force: true });
-        if (scriptPath) {
-          await fs.rm(scriptPath, { force: true });
-        }
-        await fs.rm(tmpKey, { force: true });
-        logger.info('sign.post', 'Signing process complete, response sent.');
-        return;
+      if (ext === '.ps1' || ext === '.cmd') {
       }
 
       // Default: detached signature for other file types

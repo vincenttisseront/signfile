@@ -1,6 +1,7 @@
 {
   "name": "signfile",
-  "version": "1.0.7",
+  "version": "1.0.8",
+  "description": "Added support for .cmd files",
   "private": true,
   "type": "module",
   "scripts": {
@@ -23,6 +24,7 @@
     "@types/formidable": "^3.4.5",
     "@types/node-forge": "1.3.11",
     "autoprefixer": "^10.4.21",
+    "esbuild": "^0.25.9",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.11"
   }

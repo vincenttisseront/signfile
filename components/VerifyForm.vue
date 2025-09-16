@@ -6,7 +6,7 @@
         <input
           id="script"
           type="file"
-          accept=".txt,.js,.ts,.json,.ps1"
+          accept=".txt,.js,.ts,.json,.ps1,.cmd"
           @change="handleScriptFile"
           required
           class="form-input input-file"

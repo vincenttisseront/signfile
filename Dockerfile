@@ -1,5 +1,5 @@
 # ---------- OS BASE LAYER ----------
-FROM harbor.ibanfirst.tech/base/node@sha256:048ed02c5fd52e86fda6fbd2f6a76cf0d4492fd6c6fee9e2c463ed5108da0e34 AS base
+FROM harbor.ibanfirst.tech/base/node@sha256:4a4884e8a44826194dff92ba316264f392056cbe243dcc9fd3551e71cea02b90 AS base
 WORKDIR /app
 
 # ---------- JSIGN LAYER ----------
@@ -34,7 +34,7 @@ COPY . .
 COPY --from=jsign /usr/local/bin/jsign /usr/local/bin/
 COPY --from=jsign /usr/local/bin/jsign.jar /usr/local/bin/
 RUN chmod +x node_modules/.bin/nuxt && \
-    chmod +x node_modules/@esbuild/linux-x64/bin/esbuild
+  [ -f node_modules/@esbuild/linux-x64/bin/esbuild ] && chmod +x node_modules/@esbuild/linux-x64/bin/esbuild || true
 ENV NODE_ENV=production
 RUN npm run build
 RUN chmod +x .output/server/index.mjs
