@@ -4,7 +4,7 @@ WORKDIR /app
 
 # ---------- JSIGN LAYER ----------
 FROM base AS jsign
-ARG JSIGN_VERSION=7.1
+ARG JSIGN_VERSION=7.2
 RUN apt-get update -qq && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     wget ca-certificates openjdk-17-jre-headless && \
@@ -93,7 +93,7 @@ RUN chmod +x /app/start.sh /app/entrypoint.sh
 ENV NODE_ENV=production
 ENV TZ=Europe/Paris
 ENV NITRO_HOST=0.0.0.0
-ENV JSIGN_VERSION=7.1
+ENV JSIGN_VERSION=7.2
 ENV LOG_LEVEL=info
 
 # Set directories and paths (non-sensitive)

@@ -180,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue'
 
 interface Certificate {
   name: string;
@@ -211,6 +211,11 @@ const passwordEntered = ref(false)
 const password = ref('')
 const passwordError = ref('')
 const showPasswordPopup = ref(false)
+
+// Session timeout state
+const sessionTimeout = 15 * 60 * 1000; // 15 minutes in milliseconds
+const lastActivity = ref(Date.now());
+const sessionTimer = ref<number | null>(null);
 
 // Signing state
 const scriptFile = ref<File | null>(null)
@@ -287,6 +292,7 @@ function submitPassword() {
   passwordEntered.value = true
   passwordError.value = ''
   passwordStatus.value = '' // reset status, will be set after validation
+  updateActivity() // Update last activity timestamp
   logWithTimestamp('Password entered for certificate.')
   // Immediately validate password by signing an empty file
   validateCertificatePassword()
@@ -339,6 +345,7 @@ async function handleSubmit() {
     return
   }
   error.value = ''
+  updateActivity() // Update last activity timestamp
 
   logWithTimestamp('Preparing files for signing...')
   const formData = new FormData()
@@ -455,6 +462,18 @@ function confirmUnloadCert() {
   clearCert()
 }
 
+// Clean up event listeners when component is unmounted
+onBeforeUnmount(() => {
+  if (sessionTimer.value !== null) {
+    window.clearInterval(sessionTimer.value);
+    sessionTimer.value = null;
+  }
+  
+  ['click', 'keypress', 'mousemove', 'touchstart'].forEach(event => {
+    window.removeEventListener(event, updateActivity);
+  });
+})
+
 function clearCert(): void {
   password.value = ''
   passwordEntered.value = false
@@ -494,5 +513,38 @@ async function fetchCerts(): Promise<void> {
 // Initialize on mount
 onMounted(() => {
   fetchCerts()
+  // Set up session expiration check
+  setupSessionCheck()
 })
+
+// Function to update last activity timestamp
+function updateActivity() {
+  lastActivity.value = Date.now();
+}
+
+// Function to check session expiration
+function checkSessionExpiration() {
+  if (passwordEntered.value && Date.now() - lastActivity.value > sessionTimeout) {
+    logWithTimestamp('Session expired due to inactivity (15 minutes)');
+    passwordEntered.value = false;
+    passwordError.value = 'Your session has expired due to inactivity.';
+    showPasswordPopup.value = true;
+  }
+}
+
+// Set up periodic check for session expiration
+function setupSessionCheck() {
+  // Clear any existing timer
+  if (sessionTimer.value !== null) {
+    window.clearInterval(sessionTimer.value);
+  }
+  
+  // Check every minute
+  sessionTimer.value = window.setInterval(checkSessionExpiration, 60000);
+  
+  // Set up activity listeners
+  ['click', 'keypress', 'mousemove', 'touchstart'].forEach(event => {
+    window.addEventListener(event, updateActivity);
+  });
+}
 </script>

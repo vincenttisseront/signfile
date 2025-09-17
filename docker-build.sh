@@ -5,7 +5,7 @@ set -e
 
 # Configuration
 IMAGE_NAME="signfile"
-IMAGE_TAG="1.0.7"
+IMAGE_TAG="1.0.8"
 CONTAINER_NAME="competent_turing"
 FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
 
