@@ -12,11 +12,10 @@
 <script setup>
 import { ref } from 'vue';
 import SignFile from '~/components/SignFile.vue';
+import DownloadDiagnostic from '~/components/DownloadDiagnostic.vue';
+import TroubleshootingResources from '~/components/TroubleshootingResources.vue';
 import { useLayout } from '~/composables/useLayout';
 
 // Use our layout composable to get responsive behavior
 const { isSmallScreen, screenWidth } = useLayout();
-
-// Sample logs for demonstration
-const logs = ref('Initializing digital signature tool...\nReady to sign documents.\nLoading cryptographic modules...\nSystem ready.');
 </script>

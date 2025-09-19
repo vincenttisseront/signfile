@@ -121,6 +121,18 @@
         </div>
 
         <div v-if="error" class="text-energy text-sm p-2 bg-energy/10 rounded-lg">{{ error }}</div>        
+        
+        <!-- Form diagnostic button -->
+        <FormDiagnosticButton />
+        
+        <!-- Test download link -->
+        <div v-if="scriptFile" class="mb-4 p-3 bg-blue-50 rounded-lg text-sm">
+          <p class="mb-2 text-blue-700">Having trouble with downloads? Try our download test page:</p>
+          <NuxtLink to="/download-test" target="_blank" class="btn btn-outline-primary btn-sm">
+            Open Download Test Page
+          </NuxtLink>
+        </div>
+        
         <button
           type="submit"
           :disabled="!scriptFile || loading"
@@ -134,6 +146,19 @@
             </div>
           </div>
         </button>
+        
+        <!-- Bouton spécial pour les fichiers CMD -->
+        <div v-if="scriptFile && scriptFile.name.toLowerCase().endsWith('.cmd')" class="mt-3 p-3 bg-energy/10 rounded-lg">
+          <p class="text-sm text-energy mb-2"><strong>Note importante:</strong> Les fichiers .cmd ne peuvent pas être directement signés avec Authenticode.</p>
+          <p class="text-xs text-modernity mb-2">
+            Votre fichier .cmd sera converti en un script PowerShell (.ps1) qui peut être correctement signé. 
+            Ce script PS1 contient le même contenu et fonctionnalités que votre fichier CMD original.
+          </p>
+          <p class="text-xs text-security">
+            Cette conversion est nécessaire car Windows ne reconnaît pas les signatures Authenticode sur les fichiers .cmd. 
+            Le script PowerShell (.ps1) résultant peut être signé de manière valide et exécutera les mêmes commandes que votre fichier CMD original.
+          </p>
+        </div>
       </form>
       
       <!-- Signing result -->
@@ -142,12 +167,35 @@
           {{ signResult?.success ? 'File Signed Successfully' : 'Signing Failed' }}
         </h3>
         <p class="text-sm text-modernity">{{ signResult?.message }}</p>
-        <div v-if="signResult?.success" class="mt-4">
-          <button @click="downloadSignedFile" class="btn btn-primary btn-md">
+        <div v-if="signResult?.success && downloadBlob" class="mt-4">
+          <button @click="downloadSignedFile()" class="btn btn-primary btn-md">
             Download Signed File
           </button>
+          
+          <!-- Bouton supplémentaire pour les fichiers CMD convertis en PS1 -->
+          <div v-if="downloadFilename && downloadFilename.toLowerCase().endsWith('.ps1') && scriptFile && scriptFile.name.toLowerCase().endsWith('.cmd')" class="mt-2">
+            <p class="text-xs text-modernity mt-1">
+              Le fichier CMD a été converti en script PowerShell (PS1) signé pour être compatible avec la signature Authenticode de Windows.
+            </p>
+          </div>
+        </div>
+        
+        <!-- Download troubleshooting link -->
+        <div v-if="signResult?.success && !downloadStarted" class="mt-3 text-sm">
+          <p class="text-energy">No download appearing? Try our alternative methods:</p>
+          <NuxtLink to="/download-guide" class="text-primary hover:underline">
+            View Download Troubleshooting Guide
+          </NuxtLink>
         </div>
       </div>
+      
+      <!-- Add alternative download button if we have a certificate and password -->
+      <DirectDownloadButton 
+        v-if="selectedCertificate && passwordEntered && scriptFile"
+        :certName="selectedCertificate.name"
+        :password="password"
+        fileInputId="scriptFile"
+      />
       
       <!-- Unload confirm dialog -->      
       <div
@@ -181,6 +229,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue'
+import FormDiagnosticButton from './FormDiagnosticButton.vue'
+import DirectDownloadButton from './DirectDownloadButton.vue'
 
 interface Certificate {
   name: string;
@@ -220,6 +270,7 @@ const sessionTimer = ref<number | null>(null);
 // Signing state
 const scriptFile = ref<File | null>(null)
 const signResult = ref<any>(null)
+const downloadStarted = ref(false)
 const error = ref('')
 const loading = ref(false)
 const showUnloadConfirm = ref(false)
@@ -276,8 +327,6 @@ function handleScriptFile(event: Event) {
   }
 }
 
-
-
 function cancelPassword() {
   clearCert()
 }
@@ -333,107 +382,211 @@ async function validateCertificatePassword() {
   }
 }
 
-async function handleSubmit() {
+async function handleSubmit(event: Event) {
+  // Prevent the default form submission
+  event.preventDefault();
+  
+  logWithTimestamp('Form submission triggered');
+  
   if (!selectedCertificate.value) {
-    error.value = 'Please select a certificate.'
-    logWithTimestamp('No certificate selected.')
-    return
+    error.value = 'Veuillez sélectionner un certificat.';
+    logWithTimestamp('No certificate selected.');
+    return;
   }
   if (!scriptFile.value) {
-    error.value = 'Please select a script file to sign.'
-    logWithTimestamp('No script file selected.')
-    return
+    error.value = 'Veuillez sélectionner un fichier à signer.';
+    logWithTimestamp('No script file selected.');
+    return;
   }
-  error.value = ''
-  updateActivity() // Update last activity timestamp
+  
+  error.value = '';
+  loading.value = true;
+  updateActivity(); // Update last activity timestamp
 
-  logWithTimestamp('Preparing files for signing...')
-  const formData = new FormData()
-  formData.append('script', scriptFile.value)
+  logWithTimestamp('Preparing files for signing...');
+  const formData = new FormData();
+  formData.append('script', scriptFile.value);
+  
   if (selectedCertificate.value) {
-    formData.append('storedCert', selectedCertificate.value.name)
-    logWithTimestamp(`Using certificate: ${selectedCertificate.value.name}`)
+    formData.append('storedCert', selectedCertificate.value.name);
+    logWithTimestamp(`Using certificate: ${selectedCertificate.value.name}`);
   }
+  
   if (password.value) {
-    formData.append('password', password.value)
-    logWithTimestamp('Certificate password included in request.')
+    formData.append('password', password.value);
+    logWithTimestamp('Certificate password included in request.');
   }
-
-  logWithTimestamp('Uploading files for signing...')
-  isLoading.value = true
-  let response
+  
   try {
-    response = await fetch('/api/sign', {
+    logWithTimestamp('Sending file for signing...');
+    
+    const response = await fetch('/api/sign', {
       method: 'POST',
       body: formData
-    })
-    logWithTimestamp('Waiting for server response...')
-    const contentType = response.headers.get('Content-Type') || ''
-    const disposition = response.headers.get('Content-Disposition')
-
-    if (response.ok && (disposition || contentType.includes('application/octet-stream'))) {
-      const blob = await response.blob()
-      let filename = 'signedfile.sig'
-
-      const match = disposition?.match(/filename="(.+?)"/)
-      if (match) filename = match[1]
-
-      downloadBlob.value = blob
-      downloadFilename.value = filename
-      showDownloadPopup.value = true
-      triggerDownload(blob, filename)
-      logWithTimestamp('Signed file downloaded.')
-
-      // Reset the script file input after successful signing
-      scriptFile.value = null
-      
-      // Reset the file input element
-      const scriptFileInput = document.getElementById('scriptFile') as HTMLInputElement;
-      if (scriptFileInput) {
-        scriptFileInput.value = '';
+    });
+    
+    logWithTimestamp(`Server response: ${response.status} ${response.statusText}`);
+    
+    if (response.ok) {
+      // Get filename from header if available
+      const disposition = response.headers.get('Content-Disposition') || '';
+      let filename = 'signed_file';
+      const filenameMatch = disposition.match(/filename="(.+?)"/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1];
+      } else if (scriptFile.value) {
+        // Fallback to original filename with _signed suffix
+        const origName = scriptFile.value.name;
+        const lastDot = origName.lastIndexOf('.');
+        if (lastDot > 0) {
+          const baseName = origName.substring(0, lastDot);
+          const extension = origName.substring(lastDot);
+          // Si c'était un fichier CMD, utiliser l'extension .ps1 pour le fichier converti
+          const newExt = origName.toLowerCase().endsWith('.cmd') ? '.ps1' : extension;
+          filename = `${baseName}_signed${newExt}`;
+        } else {
+          filename = `${origName}_signed`;
+        }
       }
       
-      if (passwordRequired.value) {
-        passwordEntered.value = true
-        passwordStatus.value = 'accepted'
-      }
-
-    } else {
-      // Try to parse JSON or fallback to raw text
-      let result: { error?: string } = {}
       try {
-        const content = await response.text()
-        result = contentType.includes('application/json') ? JSON.parse(content) : { error: content }
-      } catch {
-        result = { error: 'Unexpected response from server.' }
+        const blob = await response.blob();
+        
+        // Store blob for later use
+        downloadBlob.value = blob;
+        downloadFilename.value = filename;
+        
+        // Trigger automatic download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        
+        a.click();
+        
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1000);
+        
+        // Mark as downloaded
+        downloadStarted.value = true;
+        
+        // Vérifier si c'était un fichier CMD converti en PS1
+        const wasCmd = scriptFile.value && scriptFile.value.name.toLowerCase().endsWith('.cmd');
+        
+        // Update UI
+        signResult.value = {
+          success: true,
+          message: wasCmd
+            ? `Fichier CMD converti en PS1 signé "${filename}" téléchargé avec succès. Ce fichier PowerShell exécutera les mêmes commandes que votre CMD original.`
+            : `Fichier "${filename}" signé et téléchargé avec succès. Vérifiez votre dossier de téléchargements.`
+        };
+        
+        // Reset the file input for a new file
+        scriptFile.value = null;
+        const fileInput = document.getElementById('scriptFile') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+        
+      } catch (blobErr) {
+        console.error('Error processing blob:', blobErr);
+        signResult.value = {
+          success: false,
+          message: `Erreur lors du téléchargement: ${blobErr instanceof Error ? blobErr.message : String(blobErr)}`
+        };
       }
-
-      logWithTimestamp(`Error from server: ${result?.error || response.statusText}`)
-
-      if (result?.error?.toLowerCase().includes('password')) {
-        passwordEntered.value = false
-        passwordStatus.value = 'rejected'
-        password.value = ''
-        showPasswordPopup.value = true
-        passwordError.value = 'Invalid password. Please try again.'
-      }
+    } else if (response.status === 401) {
+      // Handle password errors
+      const data = await response.json();
+      passwordEntered.value = false;
+      passwordStatus.value = 'rejected';
+      password.value = '';
+      showPasswordPopup.value = true;
+      passwordError.value = 'Mot de passe invalide. Veuillez réessayer.';
+    } else {
+      // Handle other errors
+      const text = await response.text();
+      error.value = `Erreur serveur: ${text}`;
     }
   } catch (err) {
-    logWithTimestamp(`Network or server error: ${err}`)
+    console.error('Fetch error:', err);
+    error.value = `Erreur: ${err instanceof Error ? err.message : String(err)}`;
   } finally {
-    isLoading.value = false
+    loading.value = false;
   }
 }
 
-function triggerDownload(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+// Méthode pour télécharger un fichier signé à partir d'un Blob
+function downloadSignedFile() {
+  if (!downloadBlob.value || !downloadFilename.value) {
+    console.error('No blob or filename available for download');
+    return;
+  }
+  
+  downloadStarted.value = true;
+  
+  try {
+    // Créer une URL pour le blob
+    const url = URL.createObjectURL(downloadBlob.value);
+    
+    // Méthode 1: Lien standard
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = downloadFilename.value;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    
+    a.click();
+    
+    // Nettoyage du lien
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 1000);
+    
+    // Vérifier si c'était un fichier CMD converti en PS1
+    const wasCmd = downloadFilename.value.includes('_converted.ps1') && 
+                   scriptFile.value && 
+                   scriptFile.value.name.toLowerCase().endsWith('.cmd');
+    
+    // Mise à jour de l'état
+    signResult.value = {
+      success: true,
+      message: wasCmd 
+        ? `Fichier CMD converti en PS1 signé "${downloadFilename.value}" téléchargé avec succès. Ce fichier PowerShell exécutera les mêmes commandes que votre CMD original.`
+        : `Fichier signé "${downloadFilename.value}" téléchargé avec succès.`
+    };
+  } catch (err: any) {
+    console.error('Error during download:', err);
+    signResult.value = {
+      success: false,
+      message: `Erreur lors du téléchargement: ${err.message || String(err)}`
+    };
+  }
+  
+  // Réinitialiser après 5 secondes
+  setTimeout(() => {
+    downloadStarted.value = false;
+  }, 5000);
+}
+
+function confirmUnloadCert() {
+  showUnloadConfirm.value = false;
+  clearCert();
+}
+
+function clearCert() {
+  password.value = '';
+  passwordEntered.value = false;
+  passwordError.value = '';
+  passwordRequired.value = true;
+  showPasswordPopup.value = false;
+  showUnloadConfirm.value = false;
+  selectedCertificate.value = null;
+  logWithTimestamp('Certificate unloaded.');
 }
 
 function closeDownloadPopup() {
@@ -457,9 +610,9 @@ function closeDownloadPopup() {
   }
 }
 
-function confirmUnloadCert() {
-  showUnloadConfirm.value = false
-  clearCert()
+// Function to update last activity timestamp
+function updateActivity() {
+  lastActivity.value = Date.now();
 }
 
 // Clean up event listeners when component is unmounted
@@ -472,24 +625,7 @@ onBeforeUnmount(() => {
   ['click', 'keypress', 'mousemove', 'touchstart'].forEach(event => {
     window.removeEventListener(event, updateActivity);
   });
-})
-
-function clearCert(): void {
-  password.value = ''
-  passwordEntered.value = false
-  passwordError.value = ''
-  passwordRequired.value = true
-  showPasswordPopup.value = false
-  showUnloadConfirm.value = false
-  selectedCertificate.value = null
-  logWithTimestamp('Certificate unloaded.')
-}
-
-function downloadSignedFile() {
-  if (downloadBlob.value) {
-    triggerDownload(downloadBlob.value, downloadFilename.value)
-  }
-}
+});
 
 // Fetch available certificates on component mount
 async function fetchCerts(): Promise<void> {
@@ -516,11 +652,6 @@ onMounted(() => {
   // Set up session expiration check
   setupSessionCheck()
 })
-
-// Function to update last activity timestamp
-function updateActivity() {
-  lastActivity.value = Date.now();
-}
 
 // Function to check session expiration
 function checkSessionExpiration() {

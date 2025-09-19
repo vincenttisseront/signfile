@@ -18,8 +18,10 @@ RUN apt-get update -qq && \
 FROM base AS runtime-deps
 RUN apt-get update -qq && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    ca-certificates openjdk-17-jre-headless openssl && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    ca-certificates openjdk-17-jre-headless openssl curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    openssl version && \
+    which openssl
 
 # ---------- LIBRARY LAYER (node_modules) ----------
 FROM base AS deps
@@ -58,6 +60,7 @@ RUN if getent group 1000 >/dev/null; then \
 # App runtime files with correct ownership
 COPY --chown=signfile:signfile --from=build /app/.output/ ./.output/
 COPY --chown=signfile:signfile --from=build /app/composables/ ./composables/
+COPY --chown=signfile:signfile --from=build /app/server/ ./server/
 COPY --chown=signfile:signfile --from=deps /app/node_modules/ ./node_modules/
 COPY --chown=signfile:signfile --from=deps /app/package*.json ./
 COPY --chown=signfile:signfile --from=deps /app/.env ./.env

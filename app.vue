@@ -28,6 +28,14 @@
             <span class="menu-icon">ℹ️</span>
             <span>About</span>
           </NuxtLink>
+          <NuxtLink to="/verify" class="menu-item" active-class="active" @click="closeOnMobile">
+            <span class="menu-icon">✅</span>
+            <span>Verify Signature</span>
+          </NuxtLink>
+          <NuxtLink to="/verify-advanced" class="menu-item" active-class="active" @click="closeOnMobile">
+            <span class="menu-icon">🔍</span>
+            <span>Advanced Verification</span>
+          </NuxtLink>
           
           <!-- Admin section with collapsible submenu -->
           <div>
@@ -41,7 +49,6 @@
               <span v-if="!authState.isAuthenticated" class="text-[0.675rem] bg-energy/20 text-energy px-1 py-0.5 rounded ml-1">Auth Required</span>
               <span class="menu-item-arrow" :class="{ 'open': showAdminSubmenu }">▶</span>
             </div>
-            
             <div class="admin-submenu" :class="{ 'open': showAdminSubmenu }">
               <button 
                 class="menu-item"
@@ -159,6 +166,9 @@ declare global {
 // Get the app version
 const appVersion = useAppVersion();
 
+// Setup router for navigation
+const router = useRouter();
+
 // Use our layout composable to get responsive behavior
 const { isSmallScreen } = useLayout();
 
@@ -249,6 +259,12 @@ const navigateAdminSection = (section: string) => {
   // Close the sidebar on mobile
   closeOnMobile();
 };
+
+// Navigate to a specific page
+function navigateTo(path: string) {
+  router.push(path);
+  closeOnMobile();
+}
 
 // Close sidebar when clicking a link on mobile
 const closeOnMobile = () => {

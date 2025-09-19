@@ -7,7 +7,9 @@ export default defineNuxtConfig({
   ],
   plugins: [
     // Fix for Okta authentication issues
-    '~/plugins/okta-fixes.client.js'
+    '~/plugins/okta-fixes.client.js',
+    // Débogage des formulaires pour les problèmes de signature
+    '~/plugins/form-debug.client.js'
   ],
   tailwindcss: {
     configPath: '~/tailwind.config.ts',
