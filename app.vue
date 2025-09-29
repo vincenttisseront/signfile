@@ -28,13 +28,9 @@
             <span class="menu-icon">ℹ️</span>
             <span>About</span>
           </NuxtLink>
-          <NuxtLink to="/verify" class="menu-item" active-class="active" @click="closeOnMobile">
-            <span class="menu-icon">✅</span>
-            <span>Verify Signature</span>
-          </NuxtLink>
-          <NuxtLink to="/verify-advanced" class="menu-item" active-class="active" @click="closeOnMobile">
-            <span class="menu-icon">🔍</span>
-            <span>Advanced Verification</span>
+          <NuxtLink to="/verify-unified" class="menu-item" active-class="active" @click="closeOnMobile">
+            <span class="menu-icon">✓</span>
+            <span>Verify Signatures</span>
           </NuxtLink>
           
           <!-- Admin section with collapsible submenu -->

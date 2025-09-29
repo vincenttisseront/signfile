@@ -285,6 +285,14 @@ class AdvancedSignatureVerifier {
         { command: 'jsign', args: ['--verify', filePath] }
       ];
       
+      // Special options for deep validation
+      const deepValidationPaths = [
+        { command: 'java', args: ['-jar', '/usr/local/bin/jsign.jar', '--verify', '--deep', filePath] },
+        { command: '/usr/local/bin/jsign', args: ['--verify', '--deep', filePath] },
+        { command: 'jsign', args: ['--verify', '--deep', filePath] }
+      ];
+      
+      // Try standard verification first
       for (const jsignConfig of jsignPaths) {
         try {
           console.log(`[AdvancedVerifier] Trying jsign with: ${jsignConfig.command} ${jsignConfig.args.join(' ')}`);
@@ -308,6 +316,48 @@ class AdvancedSignatureVerifier {
           // Extract certificate information if available
           const certInfo = this.extractJsignCertInfo(combinedOutput);
           
+          // If standard verification fails, try deep validation
+          if (!isValid) {
+            console.log(`[AdvancedVerifier] Standard jsign verification failed, trying deep validation...`);
+            
+            // Try deep validation which might handle special cases better
+            for (const deepConfig of deepValidationPaths) {
+              try {
+                console.log(`[AdvancedVerifier] Trying jsign deep validation with: ${deepConfig.command} ${deepConfig.args.join(' ')}`);
+                
+                const deepResult = spawnSync(deepConfig.command, deepConfig.args, { 
+                  encoding: 'utf8',
+                  timeout: 15000 // Longer timeout for deep validation
+                });
+                
+                const deepOutput = deepResult.stdout || '';
+                const deepError = deepResult.stderr || '';
+                const deepCombinedOutput = deepOutput + deepError;
+                
+                // Check for successful deep verification
+                const isDeepValid = deepResult.status === 0 && 
+                                  !deepCombinedOutput.includes('is not signed') &&
+                                  !deepCombinedOutput.includes('Invalid') &&
+                                  !deepCombinedOutput.includes('Error');
+                
+                if (isDeepValid) {
+                  console.log(`[AdvancedVerifier] Deep validation succeeded where standard verification failed`);
+                  return {
+                    valid: true,
+                    method: 'jsign-deep',
+                    output: deepCombinedOutput,
+                    exitCode: deepResult.status,
+                    certificateInfo: this.extractJsignCertInfo(deepCombinedOutput),
+                    note: "Signature verified with deep validation, may have non-standard characteristics"
+                  };
+                }
+              } catch (deepErr) {
+                console.log(`[AdvancedVerifier] jsign deep validation attempt failed: ${deepErr.message}`);
+              }
+            }
+          }
+          
+          // Return standard result if we got here
           return {
             valid: isValid,
             method: 'jsign',

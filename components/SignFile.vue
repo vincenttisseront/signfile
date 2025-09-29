@@ -354,24 +354,45 @@ async function validateCertificatePassword() {
     formData.append('storedCert', selectedCertificate.value.name)
   }
   formData.append('password', password.value)
+  
+  // Create a small test file to satisfy the API requirement
+  const testBlob = new Blob(['# Test script for password validation'], { type: 'text/plain' })
+  const testFile = new File([testBlob], 'test-validation.ps1', { type: 'text/plain' })
+  formData.append('file', testFile)  // Changed from 'script' to 'file' to match server expectations
 
   try {
     const response = await fetch('/api/sign', {
       method: 'POST',
       body: formData
     })
-    const result = await response.json()
-    if (response.ok) {
-      passwordStatus.value = 'accepted'
-      logWithTimestamp('Password accepted for certificate.')
-    } else {
+    
+    // Handle non-OK responses properly
+    if (!response.ok) {
+      const errorText = await response.text()
+      let errorMsg
+      
+      try {
+        // Try to parse the error as JSON
+        const errorJson = JSON.parse(errorText)
+        errorMsg = errorJson.message || errorJson.error || 'Unknown error'
+      } catch (e) {
+        // If not JSON, use the text directly
+        errorMsg = errorText || `Server error: ${response.status} ${response.statusText}`
+      }
+      
+      logWithTimestamp(`Password validation failed: ${errorMsg}`)
       passwordStatus.value = 'rejected'
       passwordEntered.value = false
       password.value = ''
       showPasswordPopup.value = true
-      passwordError.value = 'Invalid password. Please try again.'
-      logWithTimestamp(`Password rejected: ${result.error || result.message || response.statusText}`)
+      passwordError.value = 'Invalid password or certificate error. Please try again.'
+      return
     }
+    
+    // Handle successful response
+    const result = await response.json()
+    passwordStatus.value = 'accepted'
+    logWithTimestamp('Password accepted for certificate.')
   } catch (err) {
     passwordStatus.value = 'rejected'
     passwordEntered.value = false
@@ -405,7 +426,7 @@ async function handleSubmit(event: Event) {
 
   logWithTimestamp('Preparing files for signing...');
   const formData = new FormData();
-  formData.append('script', scriptFile.value);
+  formData.append('file', scriptFile.value);  // Changed from 'script' to 'file' to match server expectations
   
   if (selectedCertificate.value) {
     formData.append('storedCert', selectedCertificate.value.name);
@@ -500,16 +521,37 @@ async function handleSubmit(event: Event) {
       }
     } else if (response.status === 401) {
       // Handle password errors
-      const data = await response.json();
-      passwordEntered.value = false;
-      passwordStatus.value = 'rejected';
-      password.value = '';
-      showPasswordPopup.value = true;
-      passwordError.value = 'Mot de passe invalide. Veuillez réessayer.';
+      try {
+        const data = await response.json();
+        passwordEntered.value = false;
+        passwordStatus.value = 'rejected';
+        password.value = '';
+        showPasswordPopup.value = true;
+        passwordError.value = 'Mot de passe invalide. Veuillez réessayer.';
+      } catch (parseErr) {
+        // In case the error response is not JSON
+        const text = await response.text();
+        error.value = `Erreur d'authentification: ${text || response.statusText}`;
+      }
     } else {
-      // Handle other errors
-      const text = await response.text();
-      error.value = `Erreur serveur: ${text}`;
+      // Handle other errors with better error parsing
+      try {
+        const text = await response.text();
+        let errorMessage;
+        
+        try {
+          // Try to parse as JSON first
+          const jsonError = JSON.parse(text);
+          errorMessage = jsonError.message || jsonError.error || text;
+        } catch (parseErr) {
+          // Use text as is if not JSON
+          errorMessage = text;
+        }
+        
+        error.value = `Erreur serveur: ${errorMessage || response.statusText}`;
+      } catch (readErr) {
+        error.value = `Erreur serveur: ${response.status} ${response.statusText}`;
+      }
     }
   } catch (err) {
     console.error('Fetch error:', err);

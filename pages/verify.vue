@@ -6,7 +6,11 @@
       </h1>
     </header>
     
-    <div class="grid md:grid-cols-2 gap-6">
+    <div v-if="!redirected" class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
+      <p class="text-blue-800">Redirecting to unified verification page...</p>
+    </div>
+    
+    <div v-else class="grid md:grid-cols-2 gap-6">
       <div class="col-span-1">
         <VerifyForm />
       </div>
@@ -53,8 +57,21 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useLayout } from '~/composables/useLayout';
 
 // Use our layout composable to get responsive behavior
 const { isSmallScreen } = useLayout();
+
+const redirected = ref(false);
+const router = useRouter();
+
+onMounted(() => {
+  // Redirect to unified page with basic tab selected
+  setTimeout(() => {
+    redirected.value = true;
+    router.push('/verify-unified?tab=basic');
+  }, 100);
+});
 </script>

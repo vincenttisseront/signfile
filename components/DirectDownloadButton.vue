@@ -64,34 +64,32 @@ function triggerDirectDownload() {
   passwordInput.value = props.password;
   form.appendChild(passwordInput);
   
-  // Clone the file input if it exists
-  if (fileInput.value && fileInput.value.files && fileInput.value.files.length > 0) {
-    const fileClone = document.createElement('input');
-    fileClone.type = 'file';
-    fileClone.name = 'script';
-    fileClone.style.display = 'none';
-    
-    // Create a new FileList with the selected file
-    try {
-      const dt = new DataTransfer();
-      dt.items.add(fileInput.value.files[0]);
-      fileClone.files = dt.files;
-      form.appendChild(fileClone);
-    } catch (err) {
-      console.error('Could not clone file:', err);
+    // Clone the file input if it exists
+    if (fileInput.value && fileInput.value.files && fileInput.value.files.length > 0) {
+      const fileClone = document.createElement('input');
+      fileClone.type = 'file';
+      fileClone.name = 'file';  // Changed from 'script' to 'file' to match server expectations
+      fileClone.style.display = 'none';
       
-      // Alternative approach: create a FormData and append all data from there
-      const formData = new FormData();
-      formData.append('script', fileInput.value.files[0]);
-      formData.append('storedCert', props.certName);
-      formData.append('password', props.password);
-      
-      // Open in a new window/tab instead
-      form.target = '_blank';
-    }
-  }
-  
-  // Submit the form
+      // Create a new FileList with the selected file
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(fileInput.value.files[0]);
+        fileClone.files = dt.files;
+        form.appendChild(fileClone);
+      } catch (err) {
+        console.error('Could not clone file:', err);
+        
+        // Alternative approach: create a FormData and append all data from there
+        const formData = new FormData();
+        formData.append('file', fileInput.value.files[0]);  // Changed from 'script' to 'file'
+        formData.append('storedCert', props.certName);
+        formData.append('password', props.password);
+        
+        // Open in a new window/tab instead
+        form.target = '_blank';
+      }
+    }  // Submit the form
   form.submit();
   console.log('Form submitted for direct download');
   

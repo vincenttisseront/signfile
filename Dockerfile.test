@@ -1,0 +1,14 @@
+FROM node:18-slim
+
+WORKDIR /app
+
+# Install OpenSSL
+RUN apt-get update && apt-get install -y openssl
+
+# Install node-forge
+RUN npm install node-forge
+
+# Copy test script
+COPY test-script.js /app/test-script.js
+
+CMD ["node", "test-script.js"]

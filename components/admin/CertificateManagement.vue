@@ -1,120 +1,203 @@
 <template>
-  <div class="p-2.5 rounded-md border border-security-20 bg-care shadow-sm">
-    <h2 class="text-xl font-semibold mb-2.5 text-security border-b border-security-30 pb-1.5">Certificate Management</h2>
-    
-    <!-- Certificate Upload Section -->
-    <div class="mb-4">
-      <h3 class="text-lg font-medium text-security mb-1.5">Upload New Certificate</h3>
+  <div class="max-w-3xl mx-auto">
+    <div class="p-6 rounded-xl border border-security/20 bg-white shadow-sm">
+      <h2 class="text-xl font-semibold mb-4 text-security flex items-center gap-2 border-b border-security/30 pb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        Certificate Management
+      </h2>
       
-      <form @submit.prevent="uploadCertificate" class="space-y-2.5">
-        <div class="space-y-1.5">
-          <label class="form-label text-security font-medium block" for="newCertFile">
-            Upload Certificate (.pfx, .pem)
-          </label>
-          <div class="relative">
+      <!-- Certificate Upload Section -->
+      <div class="mb-8 bg-gradient-to-br from-security/5 to-security/10 p-5 rounded-lg border border-security/15">
+        <h3 class="text-lg font-medium text-security mb-3 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          Upload New Certificate
+        </h3>
+        
+        <form @submit.prevent="uploadCertificate" class="space-y-4">
+          <div class="space-y-2">
+            <label class="form-label text-security font-medium block" for="newCertFile">
+              Upload Certificate (.pfx, .pem)
+            </label>
+            <div class="file-upload-container">
+              <!-- Hidden file input -->
+              <input
+                id="newCertFile"
+                type="file"
+                accept=".pfx,.pem"
+                @change="handleCertFileChange"
+                class="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10 input-file"
+              />
+              
+              <!-- Visible styled button -->
+              <div class="relative border-2 border-dashed border-security/30 rounded-lg p-4 hover:border-security/60 transition-colors duration-200 bg-white/50">
+                <div v-if="!newCertFile" class="text-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-8 w-8 text-security/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p class="mt-2 text-sm text-security/80">
+                    Drag and drop a certificate file here or
+                    <span class="text-security font-medium underline">browse</span>
+                  </p>
+                  <p class="mt-1 text-xs text-security/60">Supported formats: .pfx, .pem</p>
+                </div>
+                <div v-else class="flex items-center p-2">
+                  <div class="flex-shrink-0 p-2 bg-security/10 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-security" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div class="ml-4 flex-1 min-w-0">
+                    <div class="text-sm font-medium text-security truncate">{{ newCertFile?.name || '' }}</div>
+                    <div class="text-xs text-security/70 mt-0.5 flex items-center gap-1.5">
+                      <span class="inline-block w-2 h-2 bg-currency rounded-full"></span>
+                      Certificate selected
+                    </div>
+                  </div>
+                  <button type="button" @click="clearNewCertForm" class="ml-2 text-energy hover:text-energy/80">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" v-if="newCertFile">
+          <div class="space-y-2">
+            <label class="form-label text-security font-medium block" for="saveName">
+              Save As (Optional)
+            </label>
             <input
-              id="newCertFile"
-              type="file"
-              accept=".pfx,.pem"
-              @change="handleCertFileChange"
-              class="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10 input-file"
+              id="saveName"
+              type="text"
+              v-model="saveCertName"
+              placeholder="Enter a name or leave empty to use original filename"
+              class="form-input w-full rounded-md border-security/20 focus:border-security focus:ring focus:ring-security/20"
             />
-            <button
-              type="button"
-              class="btn btn-primary w-full md:w-auto text-left"
-              tabindex="-1"
-            >
-              Select Certificate File
-            </button>
+            <div class="text-xs text-security/70 mt-1">
+              Will be saved as: <span class="font-mono">{{ saveCertName || newCertFile?.name }}</span>
+            </div>
           </div>
-          <div v-if="newCertFile" class="text-xs text-security-70 mt-0.5 flex items-center gap-1.5">
-            <span class="inline-block w-2 h-2 bg-currency rounded-full"></span>
-            Certificate selected: {{ newCertFile?.name || '' }}
-          </div>
-        </div>
-        
-        <div class="space-y-1.5" v-if="newCertFile">
-          <label class="form-label text-security font-medium block" for="saveName">
-            Save As (Optional)
-          </label>
-          <input
-            id="saveName"
-            type="text"
-            v-model="saveCertName"
-            placeholder="Enter a name or leave empty to use original filename"
-            class="form-input w-full md:w-1/2"
-          />
-          <div class="text-xs text-security-70">
-            Will be saved as: <span class="font-mono">{{ saveCertName || newCertFile?.name }}</span>
+          
+          <div class="space-y-2">
+            <label class="form-label text-security font-medium block" for="certNotes">
+              Certificate Notes (Optional)
+            </label>
+            <textarea
+              id="certNotes"
+              v-model="certNotes"
+              placeholder="Add optional notes about this certificate"
+              class="form-textarea w-full rounded-md border-security/20 focus:border-security focus:ring focus:ring-security/20"
+              rows="3"
+            ></textarea>
           </div>
         </div>
         
-        <div class="space-y-1.5" v-if="newCertFile">
-          <label class="form-label text-security font-medium block" for="certNotes">
-            Certificate Notes (Optional)
-          </label>
-          <textarea
-            id="certNotes"
-            v-model="certNotes"
-            placeholder="Add optional notes about this certificate"
-            class="form-textarea w-full md:w-1/2 h-16"
-          ></textarea>
-        </div>
-        
-        <div class="pt-1.5 flex flex-wrap gap-1.5">
+        <div class="pt-4 flex flex-wrap gap-3">
           <button 
             type="submit" 
-            class="btn-primary"
+            class="btn btn-primary px-6 py-2.5 rounded-md flex items-center gap-2 transition-all"
             :disabled="!newCertFile || uploadingCert"
           >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" />
+            </svg>
             <span v-if="!uploadingCert">Upload Certificate</span>
             <span v-else class="flex items-center gap-1.5">
               <span class="inline-block h-3 w-3 border-2 border-t-transparent border-care animate-spin rounded-full"></span>
               Uploading...
             </span>
           </button>
-          <button 
-            type="button" 
-            @click="clearNewCertForm" 
-            v-if="newCertFile"
-          >
-            Clear
-          </button>
         </div>
         
-        <div v-if="certUploadError" class="p-2 rounded-md bg-energy-10 border border-energy text-energy text-xs">
-          ❌ {{ certUploadError }}
+        <div v-if="certUploadError" class="mt-4 p-3 rounded-md bg-energy/10 border border-energy text-energy text-sm flex items-start gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{{ certUploadError }}</span>
         </div>
-        <div v-if="certUploadSuccess" class="p-2 rounded-md bg-currency-10 border border-currency text-currency text-xs">
-          ✅ Certificate uploaded successfully
+        
+        <div v-if="certUploadSuccess" class="mt-4 p-3 rounded-md bg-currency/10 border border-currency text-currency text-sm flex items-start gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Certificate uploaded successfully</span>
         </div>
       </form>
-    </div>
-    
-    <!-- Certificates List Section -->
-    <div>
-      <div class="flex items-center justify-between mb-2.5">
-        <h3 class="text-lg font-medium text-security">Stored Certificates</h3>
+    </div>    <!-- Certificates List Section -->
+    <div class="bg-gradient-to-br from-care/30 to-care/10 p-5 rounded-lg border border-security/15">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-medium text-security flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+          Stored Certificates
+        </h3>
         <button @click="fetchCerts"
-          class="btn-secondary"
+          class="btn btn-outline-security rounded-md px-4 py-1.5 flex items-center gap-1.5 text-sm hover:bg-security/10 transition-colors"
           :disabled="loadingCerts">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
           Refresh
+          <span v-if="loadingCerts" class="ml-1 animate-spin h-3 w-3 border border-security border-t-transparent rounded-full"></span>
         </button>
       </div>
-      <div v-if="certs.length === 0" class="text-xs text-modernity-60 p-2 border border-dashed border-security-20 rounded-md bg-care/50">
-        No certificates found. Upload a certificate to get started.
+      
+      <!-- Empty state with illustration -->
+      <div v-if="certs.length === 0" class="text-center p-8 border border-dashed border-security/20 rounded-lg bg-white/60">
+        <div class="w-16 h-16 bg-security/10 rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-security/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+        </div>
+        <p class="text-sm text-security/70 font-medium">No certificates found</p>
+        <p class="text-xs text-security/50 mt-1 max-w-md mx-auto">
+          Upload a certificate using the form above to get started with signing files.
+        </p>
       </div>
-      <div v-else class="space-y-2">
-        <div v-for="cert in certs" :key="cert.id || cert.serialNumber" class="flex items-center justify-between p-2 rounded-md border border-security-10 bg-white/60">
-          <div>
-            <div class="font-mono text-xs text-security">{{ cert.subject || cert.name }}</div>
-            <div class="text-[0.7rem] text-modernity-60">Root CA: <span class="font-mono">{{ cert.issuer || 'Unknown' }}</span></div>
-            <div class="text-[0.7rem] text-modernity-60">Expires: <span class="font-mono">{{ formatDate(cert.validTo) }}</span></div>
-            <div class="text-[0.7rem] text-modernity-60" v-if="cert.metadata && cert.metadata.uploadedBy">Uploader: <span class="font-mono">{{ cert.metadata.uploadedBy }}</span></div>
-          </div>
-          <div class="flex gap-1">
-            <button class="btn-secondary btn-sm" @click="viewCertificateInfo(cert.name)">Details</button>
-            <button class="btn-danger btn-sm" @click="$emit('remove-certificate', cert.name)">Remove</button>
+      
+      <!-- Certificate list -->
+      <div v-else class="space-y-3 mt-2">
+        <div v-for="cert in certs" :key="cert.id || cert.serialNumber" 
+             class="bg-white p-4 rounded-lg border border-security/10 shadow-sm hover:shadow-md transition-all duration-200">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <div class="p-1.5 rounded-full bg-security/10">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-security" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <span class="font-medium text-security truncate max-w-xs">{{ cert.subject || cert.name }}</span>
+              </div>
+              <div class="mt-2 ml-8 space-y-1">
+                <div class="text-xs text-security/70">Root CA: <span class="font-mono">{{ cert.issuer || 'Unknown' }}</span></div>
+                <div class="text-xs text-security/70">Expires: <span class="font-mono">{{ formatDate(cert.validTo) }}</span></div>
+                <div class="text-xs text-security/70" v-if="cert.metadata && cert.metadata.uploadedBy">
+                  Uploader: <span class="font-mono">{{ cert.metadata.uploadedBy }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2 sm:flex-shrink-0 ml-8 sm:ml-0">
+              <button class="btn btn-outline-security btn-sm px-3 py-1.5 rounded-md flex items-center gap-1.5" @click="viewCertificateInfo(cert.name)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Details
+              </button>
+              <button class="btn btn-outline-energy btn-sm px-3 py-1.5 rounded-md flex items-center gap-1.5" @click="$emit('remove-certificate', cert.name)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Remove
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -366,7 +449,46 @@
       </div>
     </div>
   </div>
+  </div>
 </template>
+
+<style scoped>
+.file-upload-container {
+  position: relative;
+  cursor: pointer;
+}
+
+.file-upload-container:hover {
+  opacity: 0.9;
+}
+
+/* Animation for buttons when active */
+.btn:not([disabled]):active {
+  transform: scale(0.98);
+}
+
+/* Certificate modal styles */
+.certificate-modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.certificate-password-modal,
+.certificate-info-modal {
+  background-color: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.certificate-info-modal {
+  max-width: 700px;
+}
+</style>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
