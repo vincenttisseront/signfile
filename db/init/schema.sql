@@ -1,6 +1,6 @@
 -- Create database
-CREATE DATABASE IF NOT EXISTS security_console CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE security_console;
+CREATE DATABASE IF NOT EXISTS signfile CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE signfile;
 
 -- Users
 CREATE TABLE users (

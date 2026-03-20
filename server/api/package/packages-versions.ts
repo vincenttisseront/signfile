@@ -116,7 +116,7 @@ async function getLatestGithubRelease(repo: string): Promise<string> {
     const options = {
       hostname: 'api.github.com',
       path: `/repos/${repo}/releases/latest`,
-      headers: { 'User-Agent': 'SecurityConsole-App' }
+      headers: { 'User-Agent': 'SignFile-App' }
     }
     https.get(options, res => {
       let data = ''
@@ -213,7 +213,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
         https.get({
           hostname: 'registry.npmjs.org',
           path: `/${name.replace(/^@/, '%40')}`,
-          headers: { 'User-Agent': 'SecurityConsole-App' }
+          headers: { 'User-Agent': 'SignFile-App' }
         }, res => {
           let data = ''
           res.on('data', chunk => (data += chunk))
@@ -251,7 +251,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
           https.get({
             hostname: 'api.github.com',
             path: `/repos/${repo}/releases/latest`,
-            headers: { 'User-Agent': 'SecurityConsole-App' }
+            headers: { 'User-Agent': 'SignFile-App' }
           }, res => {
             let data = ''
             res.on('data', chunk => (data += chunk))
@@ -273,7 +273,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
             https.get({
               hostname: 'registry.npmjs.org',
               path: `/${name.replace(/^@/, '%40')}/latest`,
-              headers: { 'User-Agent': 'SecurityConsole-App' }
+              headers: { 'User-Agent': 'SignFile-App' }
             }, res => {
               let data = ''
               res.on('data', chunk => (data += chunk))
@@ -294,7 +294,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
             https.get({
               hostname: 'registry.npmjs.org',
               path: `/${name.replace(/^@/, '%40')}`,
-              headers: { 'User-Agent': 'SecurityConsole-App' }
+              headers: { 'User-Agent': 'SignFile-App' }
             }, res => {
               let data = ''
               res.on('data', chunk => (data += chunk))
@@ -314,7 +314,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
           https.get({
             hostname: 'registry.npmjs.org',
             path: `/${name.replace(/^@/, '%40')}/latest`,
-            headers: { 'User-Agent': 'SecurityConsole-App' }
+            headers: { 'User-Agent': 'SignFile-App' }
           }, res => {
             let data = ''
             res.on('data', chunk => (data += chunk))
@@ -337,7 +337,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
         https.get({
           hostname: 'registry.npmjs.org',
           path: `/${name.replace(/^@/, '%40')}/latest`,
-          headers: { 'User-Agent': 'SecurityConsole-App' }
+          headers: { 'User-Agent': 'SignFile-App' }
         }, res => {
           let data = ''
           res.on('data', chunk => (data += chunk))
@@ -360,7 +360,7 @@ async function getNpmPackages(includePrerelease: boolean = false) {
         https.get({
           hostname: 'registry.npmjs.org',
           path: `/${name.replace(/^@/, '%40')}`,
-          headers: { 'User-Agent': 'SecurityConsole-App' }
+          headers: { 'User-Agent': 'SignFile-App' }
         }, res => {
           let data = ''
           res.on('data', chunk => (data += chunk))

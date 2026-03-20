@@ -1,12 +1,12 @@
 import { spawn } from 'child_process'
 
 export default defineEventHandler(async (event) => {
-  if (event.req.method !== 'POST') {
+  if (event.method !== 'POST') {
     return { error: 'Method not allowed' }
   }
   const body = await readBody(event)
   const pkg = body?.name
-  if (!pkg || typeof pkg !== 'string') {
+  if (!pkg || typeof pkg !== 'string' || !/^[@a-z0-9\-\/\.]+$/i.test(pkg)) {
     return { error: 'Missing or invalid package name' }
   }
   return new Promise((resolve) => {

@@ -1,6 +1,6 @@
 # Server Logging System
 
-The SecurityConsole application includes a flexible logging system for server-side code. You can control the verbosity of logs by setting the `LOG_LEVEL` environment variable.
+The SignFile application includes a flexible logging system for server-side code. You can control the verbosity of logs by setting the `LOG_LEVEL` environment variable.
 
 ## Log Levels
 

@@ -20,8 +20,7 @@
       </div>
       <div v-else-if="adminVersions">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div class="p-2 rounded bg-security-5"><span class="font-semibold text-currency">jsign version:</span> <span
-              class="ml-2">{{ adminVersions?.versions?.jsign?.current || 'N/A' }}</span></div>
+          <div class="p-2 rounded bg-security-5"><span class="font-semibold text-currency">jsign version:</span> <span class="ml-2">{{ adminVersions?.versions?.jsign?.current || 'N/A' }}</span></div>
           <div class="p-2 rounded bg-security-5"><span class="font-semibold text-currency">OpenSSL version:</span>
             <span class="ml-2">{{ adminVersions?.versions?.openssl?.current || 'N/A' }}</span>
             <span class="text-xs text-security" v-if="adminVersions?.versions?.openssl?.latest">(latest: {{ adminVersions.versions.openssl.latest }})</span>
@@ -29,8 +28,7 @@
           <div class="p-2 rounded bg-security-5"><span class="font-semibold text-currency">OpenJDK version:</span>
             <span class="ml-2">{{ adminVersions?.versions?.openjdk?.current || 'N/A' }}</span>
           </div>
-          <div class="p-2 rounded bg-security-5"><span class="font-semibold text-currency">Base image:</span> <span
-              class="ml-2">{{ adminVersions?.baseImage || 'N/A' }}</span></div>
+          <div class="p-2 rounded bg-security-5"><span class="font-semibold text-currency">Base image:</span> <span class="ml-2">{{ adminVersions?.baseImage || 'N/A' }}</span></div>
         </div>
       </div>
       <div v-else class="text-security-50 italic text-center py-4">No system information available. Click "Refresh System Info" to load data.</div>
@@ -38,44 +36,22 @@
   </div>
 </template>
 
-<script>
-import { useAppVersion } from '~/composables/useAppVersion';
+<script setup lang="ts">
+const appVersion = useAppVersion()
+const adminVersions = ref<any>(null)
+const loadingSystem = ref(false)
 
-export default {
-  name: 'SystemInfo',
-  setup() {
-    const appVersion = useAppVersion();
-    return {
-      appVersion
-    };
-  },
-  data() {
-    return {
-      adminVersions: null,
-      loadingSystem: false
-    }
-  },
-  mounted() {
-    this.fetchSystemInfo();
-  },
-  methods: {
-    async fetchSystemInfo() {
-      this.loadingSystem = true;
-      try {
-        // Fixed: Use the correct API endpoint for system information
-        const response = await fetch('/api/packages-versions');
-        if (!response.ok) {
-          throw new Error(`Error loading system data: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        this.adminVersions = data;
-      } catch (error) {
-        console.error('Error loading system info:', error);
-      } finally {
-        this.loadingSystem = false;
-      }
-    }
+async function fetchSystemInfo() {
+  loadingSystem.value = true
+  try {
+    const response = await fetch('/api/packages-versions')
+    if (!response.ok) throw new Error(`Error loading system data: ${response.status}`)
+    adminVersions.value = await response.json()
+  } catch { /* failed to load */ }
+  finally {
+    loadingSystem.value = false
   }
 }
+
+onMounted(() => fetchSystemInfo())
 </script>

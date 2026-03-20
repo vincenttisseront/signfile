@@ -1,8 +1,6 @@
-/* securityconsole - Main CSS file */
+/* signfile - Main CSS file */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* Global font size reduction */
 html {

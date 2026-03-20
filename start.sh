@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo "[STARTUP] securityconsole container starting up..."
+echo "[STARTUP] signfile container starting up..."
 echo "[STARTUP] Creating required directories..."
 mkdir -p "$TEMP_DIR" "$DATA_DIR" /app/auth-data 2>/dev/null || echo "[STARTUP] Warning: Error creating directories"
 chmod -R 777 "$TEMP_DIR" "$DATA_DIR" /app/auth-data 2>/dev/null || echo "[STARTUP] Warning: Error setting permissions"

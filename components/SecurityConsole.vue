@@ -1,6 +1,6 @@
 <template>
   <div class="max-w-5xl mx-auto py-8">
-    <h1 class="text-3xl font-bold mb-6 text-security">Security Console Dashboard</h1>
+    <h1 class="text-3xl font-bold mb-6 text-security">SignFile Dashboard</h1>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
       <div class="bg-care p-6 rounded-lg shadow border border-security/20">
         <h2 class="text-lg font-semibold mb-4 text-security">Agents Overview</h2>
@@ -27,18 +27,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import Chart from 'chart.js/auto'
 
 interface Agent {
-  id: string;
-  name: string;
-  type: string;
+  id: string
+  name: string
+  type: string
 }
 
 const agents = ref<Agent[]>([])
 const agentsPieChart = ref<HTMLCanvasElement | null>(null)
 const typesPieChart = ref<HTMLCanvasElement | null>(null)
+
+let agentsChartInstance: Chart | null = null
+let typesChartInstance: Chart | null = null
 
 async function fetchAgents() {
   try {
@@ -46,33 +48,23 @@ async function fetchAgents() {
     if (response.ok) {
       const data = await response.json()
       agents.value = data.agents || []
-    } else {
-      agents.value = []
     }
-  } catch (err) {
-    agents.value = []
-  }
+  } catch { /* endpoint may not exist yet */ }
 }
 
 function renderAgentsPie() {
   if (!agentsPieChart.value) return
-  const data = {
-    labels: agents.value.map(a => a.name),
-    datasets: [{
-      data: agents.value.map(() => 1),
-      backgroundColor: [
-        '#8f40ff', '#64ffa2', '#ff5249', '#140309', '#fffdf6', '#fbbf24', '#3b82f6', '#10b981'
-      ]
-    }]
-  }
-  new Chart(agentsPieChart.value, {
+  agentsChartInstance?.destroy()
+  agentsChartInstance = new Chart(agentsPieChart.value, {
     type: 'pie',
-    data,
-    options: {
-      plugins: {
-        legend: { display: true, position: 'bottom' }
-      }
-    }
+    data: {
+      labels: agents.value.map(a => a.name),
+      datasets: [{
+        data: agents.value.map(() => 1),
+        backgroundColor: ['#8f40ff', '#64ffa2', '#ff5249', '#140309', '#fffdf6', '#fbbf24', '#3b82f6', '#10b981']
+      }]
+    },
+    options: { plugins: { legend: { display: true, position: 'bottom' } } }
   })
 }
 
@@ -80,23 +72,17 @@ function renderTypesPie() {
   if (!typesPieChart.value) return
   const typeCounts: Record<string, number> = {}
   agents.value.forEach(a => { typeCounts[a.type] = (typeCounts[a.type] || 0) + 1 })
-  const data = {
-    labels: Object.keys(typeCounts),
-    datasets: [{
-      data: Object.values(typeCounts),
-      backgroundColor: [
-        '#8f40ff', '#64ffa2', '#ff5249', '#140309', '#fffdf6', '#fbbf24', '#3b82f6', '#10b981'
-      ]
-    }]
-  }
-  new Chart(typesPieChart.value, {
+  typesChartInstance?.destroy()
+  typesChartInstance = new Chart(typesPieChart.value, {
     type: 'pie',
-    data,
-    options: {
-      plugins: {
-        legend: { display: true, position: 'bottom' }
-      }
-    }
+    data: {
+      labels: Object.keys(typeCounts),
+      datasets: [{
+        data: Object.values(typeCounts),
+        backgroundColor: ['#8f40ff', '#64ffa2', '#ff5249', '#140309', '#fffdf6', '#fbbf24', '#3b82f6', '#10b981']
+      }]
+    },
+    options: { plugins: { legend: { display: true, position: 'bottom' } } }
   })
 }
 
@@ -104,5 +90,10 @@ onMounted(async () => {
   await fetchAgents()
   renderAgentsPie()
   renderTypesPie()
+})
+
+onUnmounted(() => {
+  agentsChartInstance?.destroy()
+  typesChartInstance?.destroy()
 })
 </script>

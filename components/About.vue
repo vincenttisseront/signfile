@@ -21,40 +21,5 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useAsyncData } from '#app'
-import { useAppVersion } from '~/composables/useAppVersion'
-
-// Get the app version from the composable
 const appVersion = useAppVersion()
-
-const { data, pending, error } = useAsyncData('about-versions', async () => {
-  const res = await fetch('/api/packages-versions')
-  if (!res.ok) throw new Error('Failed to fetch versions')
-  return await res.json()
-})
-
-const versions = computed(() => data.value || {
-  baseImage: '',
-  versions: {
-    jsign: { current: '', latest: '', outdated: false },
-    openssl: { current: '', latest: '', outdated: false, latest: '' },
-    openjdk: { current: '', latest: '', outdated: false }
-  },
-  npmPackages: []
-})
-
-const npmPackages = computed(() => {
-  // Always return a fresh array, sorted alphabetically, and never fallback to [] if loading
-  if (!data.value) return null
-  if (!Array.isArray(data.value.npmPackages)) return null
-  // Sort: outdated first, then alphabetically
-  return [...data.value.npmPackages].sort((a, b) => {
-    if (a.outdated && !b.outdated) return -1
-    if (!a.outdated && b.outdated) return 1
-    return a.name.localeCompare(b.name)
-  })
-})
-
-const currentYear = useState('current-year', () => new Date().getFullYear())
 </script>

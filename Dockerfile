@@ -32,28 +32,28 @@ WORKDIR /app
 
 # Create app user early (before COPY --chown) - check if GID/UID exists first
 RUN if getent group 1000 >/dev/null; then \
-      groupadd securityconsole; \
+      groupadd signfile; \
     else \
-      groupadd -g 1000 securityconsole || groupadd securityconsole; \
+      groupadd -g 1000 signfile || groupadd signfile; \
     fi && \
     if getent passwd 1000 >/dev/null; then \
-      useradd -g securityconsole -d /app -m -s /bin/sh securityconsole; \
+      useradd -g signfile -d /app -m -s /bin/sh signfile; \
     else \
-      useradd -u 1000 -g securityconsole -d /app -m -s /bin/sh securityconsole || useradd -g securityconsole -d /app -m -s /bin/sh securityconsole; \
+      useradd -u 1000 -g signfile -d /app -m -s /bin/sh signfile || useradd -g signfile -d /app -m -s /bin/sh signfile; \
     fi
 
 # App runtime files with correct ownership
-COPY --chown=securityconsole:securityconsole --from=build /app/.output/ ./.output/
-COPY --chown=securityconsole:securityconsole --from=build /app/composables/ ./composables/
-COPY --chown=securityconsole:securityconsole --from=deps /app/node_modules/ ./node_modules/
-COPY --chown=securityconsole:securityconsole --from=deps /app/package*.json ./
-COPY --chown=securityconsole:securityconsole --from=deps /app/.env ./.env
+COPY --chown=signfile:signfile --from=build /app/.output/ ./.output/
+COPY --chown=signfile:signfile --from=build /app/composables/ ./composables/
+COPY --chown=signfile:signfile --from=deps /app/node_modules/ ./node_modules/
+COPY --chown=signfile:signfile --from=deps /app/package*.json ./
+COPY --chown=signfile:signfile --from=deps /app/.env ./.env
 
 RUN set -e; \
     mkdir -p /app/temp; \
     mkdir -p /app/data; \
     mkdir -p /app/auth-data; \
-    chown -R securityconsole:securityconsole /app; \
+    chown -R signfile:signfile /app; \
     chmod -R 755 /app/temp; \
     chmod -R 755 /app/data; \
     chmod -R 755 /app/auth-data; \
@@ -63,15 +63,12 @@ RUN set -e; \
 
 
 # Copy startup scripts from build context to runtime layer
-COPY --chown=securityconsole:securityconsole --from=build /app/start.sh /app/start.sh
-COPY --chown=securityconsole:securityconsole --from=build /app/entrypoint.sh /app/entrypoint.sh
+COPY --chown=signfile:signfile --from=build /app/start.sh /app/start.sh
+COPY --chown=signfile:signfile --from=build /app/entrypoint.sh /app/entrypoint.sh
 
 # Fix Windows line endings if present and ensure executable
 RUN [ -f /app/start.sh ] && sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh || echo '/app/start.sh not found'; \
     [ -f /app/entrypoint.sh ] && sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh || echo '/app/entrypoint.sh not found';
-
-# Inject atob polyfill at the top of Nuxt SSR entrypoint
-RUN sed -i '1i if (typeof atob === "undefined") { global.atob = str => Buffer.from(str, "base64").toString("binary"); }' /app/.output/server/index.mjs
 
 # Set env vars
 ENV NODE_ENV=production
@@ -82,9 +79,8 @@ ENV LOG_LEVEL=info
 
 ENV TEMP_DIR=/app/temp
 ENV DATA_DIR=/app/data
-ENV AUTHENTICATED_USERS_FILE=/app/auth-data/authenticated_users.json
 
-USER securityconsole
+USER signfile
 
 EXPOSE 3000
 

@@ -1,14 +1,8 @@
-
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useOkta } from '@/composables/useOkta'
-
 const error = ref<string | null>(null)
 const loading = ref(true)
 
 onMounted(async () => {
-  if (!process.client) return
-
   const oktaAuth = useOkta()
   if (!oktaAuth) {
     error.value = 'Authentication service is not available'
@@ -17,45 +11,31 @@ onMounted(async () => {
   }
 
   try {
-    // This will handle the authorization code (PKCE) flow
-    // Note: parseFromUrl() will exchange the code for tokens automatically
     const tokens = await oktaAuth.token.parseFromUrl()
-    if (tokens && tokens.tokens) {
+    if (tokens?.tokens) {
       if (tokens.tokens.idToken) {
         await oktaAuth.tokenManager.add('idToken', tokens.tokens.idToken)
       }
       if (tokens.tokens.accessToken) {
         await oktaAuth.tokenManager.add('accessToken', tokens.tokens.accessToken)
       }
-      // Success! Redirect to home
-      window.location.replace('/')
-      return
+      return navigateTo('/', { replace: true })
     }
-    error.value = 'No tokens found in callback. Check URL parameters for authorization code.'
-    console.error('Callback error: No tokens returned from parseFromUrl()')
-    // Log URL params for debugging (without the code for security)
+
     const urlParams = new URLSearchParams(window.location.search)
-    const hasCode = urlParams.has('code')
-    const hasError = urlParams.has('error')
-    console.log('URL has code parameter:', hasCode)
-    if (hasError) {
-      console.error('Error in URL:', urlParams.get('error'))
-      console.error('Error description:', urlParams.get('error_description'))
+    if (urlParams.has('error')) {
       error.value = `Authentication error: ${urlParams.get('error')} - ${urlParams.get('error_description')}`
+    } else {
+      error.value = 'No tokens found in callback.'
     }
     loading.value = false
   } catch (err) {
-    // If already authenticated, just redirect
     try {
       const authState = await oktaAuth.authStateManager.getAuthState()
       if (authState?.isAuthenticated) {
-        window.location.replace('/')
-        return
+        return navigateTo('/', { replace: true })
       }
-    } catch (stateErr) {
-      console.error('Error checking auth state:', stateErr)
-    }
-    console.error('Authentication error:', err)
+    } catch { /* ignore */ }
     error.value = 'Authentication failed: ' + (err as Error).message
     loading.value = false
   }
@@ -73,8 +53,8 @@ onMounted(async () => {
         </div>
         <div v-else-if="error" class="bg-energy/10 p-4 rounded-lg border border-energy/30">
           <p class="mb-4 text-energy font-medium">{{ error }}</p>
-          <button 
-            @click="() => navigateTo('/')" 
+          <button
+            @click="() => navigateTo('/')"
             class="bg-security text-care hover:bg-currency hover:text-modernity transition-colors duration-200 rounded-lg px-4 py-2 font-medium"
           >
             Return to Home

@@ -1,8 +1,8 @@
 version: '3.8'
 services:
-  securityconsole:
+  signfile:
     build: .
-    container_name: securityconsole
+    container_name: signfile
     ports:
       - "3000:3000"
     environment:
@@ -16,7 +16,7 @@ services:
     restart: always
     environment:
       - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=securityconsole
+      - MYSQL_DATABASE=signfile
       - MYSQL_USER=securityuser
       - MYSQL_PASSWORD=securitypass
     ports:
